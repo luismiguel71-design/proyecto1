@@ -2,10 +2,13 @@ import { collection, getDocs, limit, orderBy, query, doc, getDoc } from 'firebas
 import { db } from './client';
 import type { Evento } from '../types';
 
-const eventsCollection = collection(db, 'events');
-
 export async function getEvents(count?: number): Promise<Evento[]> {
+  if (!db) {
+    // This is expected if Firebase is not configured
+    return [];
+  }
   try {
+    const eventsCollection = collection(db, 'events');
     const q = count 
       ? query(eventsCollection, orderBy('date', 'desc'), limit(count))
       : query(eventsCollection, orderBy('date', 'desc'));
@@ -32,11 +35,16 @@ export async function getEvents(count?: number): Promise<Evento[]> {
     return events;
   } catch (error) {
     console.error("Error getting documents: ", error);
+    // Return empty array on error so UI doesn't break
     return [];
   }
 }
 
 export async function getEvent(id: string): Promise<Evento | null> {
+    if (!db) {
+        // This is expected if Firebase is not configured
+        return null;
+    }
     try {
         const docRef = doc(db, 'events', id);
         const docSnap = await getDoc(docRef);

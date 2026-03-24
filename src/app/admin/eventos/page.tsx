@@ -1,8 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { User } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
@@ -11,6 +10,7 @@ import { Evento } from '@/lib/types';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getCurrentUser } from '@/lib/firebase/auth';
 
 export default function AdminEventosPage() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function AdminEventosPage() {
   const [events, setEvents] = useState<Evento[]>([]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = getCurrentUser((user) => {
       if (user) {
         setUser(user);
         fetchEvents();

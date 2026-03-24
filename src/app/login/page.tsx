@@ -47,12 +47,16 @@ export default function LoginPage() {
         description: "Bienvenido al panel de administración.",
       });
       router.push('/admin/eventos');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      let description = "El correo electrónico o la contraseña son incorrectos.";
+      if (error.message?.includes("Firebase")) {
+          description = "Error de Firebase: Es posible que la configuración no sea correcta. Contacta al administrador."
+      }
       toast({
         variant: "destructive",
         title: "Error de Autenticación",
-        description: "El correo electrónico o la contraseña son incorrectos.",
+        description: description,
       });
     } finally {
         setIsLoading(false);
