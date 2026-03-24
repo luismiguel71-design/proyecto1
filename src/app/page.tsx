@@ -153,7 +153,7 @@ export default function Home() {
             </div>
           </div>
           <div>
-            <div className="relative aspect-[3/4] rounded-lg overflow-hidden shadow-lg">
+            <div className="relative aspect-square rounded-lg overflow-hidden shadow-lg">
                 <Image
                     src="/mascot.png"
                     alt="Mascota del CBTIS 294 - Guerrero Xoloitzcuintle"
