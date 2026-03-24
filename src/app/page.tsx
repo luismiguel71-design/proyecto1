@@ -153,13 +153,13 @@ export default function Home() {
             </div>
           </div>
           <div>
-            <div className="relative aspect-video rounded-lg overflow-hidden shadow-lg">
+            <div className="relative aspect-[3/4] rounded-lg overflow-hidden shadow-lg">
                 <Image
-                    src="https://picsum.photos/seed/schoolcampus/600/400"
-                    alt="Campus del CBTIS 294"
+                    src="/mascot.png"
+                    alt="Mascota del CBTIS 294 - Guerrero Xoloitzcuintle"
                     fill
                     className="object-cover"
-                    data-ai-hint="school campus"
+                    data-ai-hint="xoloitzcuintle warrior mascot"
                 />
             </div>
           </div>

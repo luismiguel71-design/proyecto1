@@ -1,11 +1,11 @@
 import Link from 'next/link';
-import { GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 export function Logo({ className }: { className?: string }) {
   return (
     <Link href="/" className={cn("flex items-center space-x-2", className)}>
-      <GraduationCap className="h-6 w-6 text-primary" />
+      <Image src="/logo.png" alt="CBTIS 294 Logo" width={40} height={40} className="rounded-full" />
       <span className="font-bold">CBTIS 294</span>
     </Link>
   );
