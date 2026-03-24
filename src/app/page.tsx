@@ -5,6 +5,7 @@ import {
   BookOpen,
   GraduationCap,
   Users,
+  BrainCircuit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,7 +34,7 @@ export default function Home() {
             data-ai-hint={heroImage.imageHint}
           />
         )}
-        <div className="absolute inset-0 bg-primary/70" />
+        <div className="absolute inset-0 bg-primary/80" />
         <div className="relative z-10 container px-4 md:px-6 flex flex-col items-center">
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter mb-4 animate-fade-in-down">
             CBTIS No. 294
@@ -41,8 +42,8 @@ export default function Home() {
           <p className="max-w-3xl mx-auto text-lg md:text-xl text-primary-foreground/90 mb-8 animate-fade-in-up">
             Formando líderes para el futuro tecnológico y de servicios.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button asChild size="lg" className="animate-fade-in">
+          <div className="flex flex-col sm:flex-row gap-4 animate-fade-in">
+            <Button asChild size="lg">
               <Link href="/carreras">
                 Nuestra Oferta Educativa <ArrowRight className="ml-2" />
               </Link>
@@ -108,10 +109,10 @@ export default function Home() {
         <div className="container px-4 md:px-6 grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-primary">
-              Sobre Nuestra Institución
+              Innovación y Futuro en CBTIS 294
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Nuestra misión es ofrecer educación de nivel medio superior técnico, formando estudiantes competentes y preparados para el sector laboral y la continuación de estudios superiores.
+              Nuestra misión es ofrecer educación de nivel medio superior técnico, formando estudiantes competentes y preparados para el sector laboral y la continuación de estudios superiores, con un enfoque especial en las tecnologías emergentes como la Inteligencia Artificial.
             </p>
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="flex items-start gap-4">
@@ -119,8 +120,8 @@ export default function Home() {
                         <GraduationCap />
                     </div>
                     <div>
-                        <h3 className="font-semibold">Educación de Calidad</h3>
-                        <p className="text-muted-foreground text-sm">Planes de estudio actualizados y relevantes.</p>
+                        <h3 className="font-semibold">Educación de Vanguardia</h3>
+                        <p className="text-muted-foreground text-sm">Planes de estudio actualizados y relevantes para la industria 4.0.</p>
                     </div>
                 </div>
                 <div className="flex items-start gap-4">
@@ -129,16 +130,16 @@ export default function Home() {
                     </div>
                     <div>
                         <h3 className="font-semibold">Docentes Expertos</h3>
-                        <p className="text-muted-foreground text-sm">Profesionales con experiencia en su campo.</p>
+                        <p className="text-muted-foreground text-sm">Profesionales con experiencia en su campo y en tecnologías de punta.</p>
                     </div>
                 </div>
                  <div className="flex items-start gap-4">
                     <div className="bg-primary/10 text-primary p-3 rounded-full">
-                        <BookOpen />
+                        <BrainCircuit />
                     </div>
                     <div>
-                        <h3 className="font-semibold">Recursos Modernos</h3>
-                        <p className="text-muted-foreground text-sm">Instalaciones y laboratorios equipados.</p>
+                        <h3 className="font-semibold">Enfoque en IA</h3>
+                        <p className="text-muted-foreground text-sm">Laboratorios y proyectos enfocados en Inteligencia Artificial.</p>
                     </div>
                 </div>
                  <div className="flex items-start gap-4">
@@ -147,19 +148,19 @@ export default function Home() {
                     </div>
                     <div>
                         <h3 className="font-semibold">Visión de Futuro</h3>
-                        <p className="text-muted-foreground text-sm">Preparación para la universidad y el trabajo.</p>
+                        <p className="text-muted-foreground text-sm">Preparación para la universidad y los empleos del mañana.</p>
                     </div>
                 </div>
             </div>
           </div>
           <div>
-            <div className="relative aspect-square rounded-lg overflow-hidden shadow-lg">
+            <div className="relative aspect-video rounded-lg overflow-hidden shadow-2xl">
                 <Image
-                    src="/mascot.png"
-                    alt="Mascota del CBTIS 294 - Guerrero Xoloitzcuintle"
+                    src="https://picsum.photos/seed/ai-classroom/800/600"
+                    alt="Aula con tecnología de IA"
                     fill
                     className="object-cover"
-                    data-ai-hint="xoloitzcuintle warrior mascot"
+                    data-ai-hint="AI classroom technology"
                 />
             </div>
           </div>
@@ -178,9 +179,9 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[1, 2, 3].map((item) => (
-              <Card key={item} className="shadow-lg">
-                <CardHeader>
-                  <div className="aspect-video bg-muted rounded-md mb-4 overflow-hidden relative">
+              <Card key={item} className="shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
+                <CardHeader className='p-0'>
+                  <div className="aspect-video bg-muted rounded-t-lg mb-4 overflow-hidden relative">
                     <Image
                         src={`https://picsum.photos/seed/news${item}/600/400`}
                         alt={`Noticia ${item}`}
@@ -189,10 +190,10 @@ export default function Home() {
                         data-ai-hint="student event"
                     />
                   </div>
-                  <CardTitle>Evento Importante {item}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <CardDescription>
+                <CardContent className='p-6'>
+                  <CardTitle className='text-xl'>Evento de Innovación {item}</CardTitle>
+                  <CardDescription className='mt-2'>
                     Una breve descripción sobre la noticia o el evento que se
                     está llevando a cabo en la institución.
                   </CardDescription>
