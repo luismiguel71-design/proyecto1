@@ -59,7 +59,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section id="carreras" className="py-16 md:py-24 bg-background">
+      <section id="carreras" className="py-16 md:py-24">
         <div className="container px-4 md:px-6">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-primary">
@@ -171,7 +171,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section id="noticias" className="py-16 md:py-24 bg-background">
+      <section id="noticias" className="py-16 md:py-24">
         <div className="container px-4 md:px-6">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-primary">

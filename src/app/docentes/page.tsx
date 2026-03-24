@@ -9,7 +9,7 @@ export default function DocentesPage() {
   const teacherImage = PlaceHolderImages.find(img => img.id === 'teacher-placeholder');
 
   return (
-    <div className="bg-background">
+    <div className="">
       <section className="py-16 md:py-24 bg-primary/5">
         <div className="container px-4 md:px-6 text-center">
           <h1 className="text-4xl md:text-5xl font-extrabold text-primary tracking-tight">
