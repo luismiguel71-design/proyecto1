@@ -17,10 +17,14 @@ import {
 } from '@/components/ui/card';
 import { careers } from '@/app/lib/school-data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { getEvents } from '@/lib/firebase/firestore';
+import { Evento } from '@/lib/types';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero-students-laughing');
 
-export default function Home() {
+export default async function Home() {
+  const latestEvents = await getEvents(3);
+
   return (
     <div className="flex flex-col">
       <section className="relative h-[60vh] md:h-[70vh] w-full flex items-center justify-center text-center text-white">
@@ -178,13 +182,13 @@ export default function Home() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[1, 2, 3].map((item) => (
-              <Card key={item} className="shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
+            {latestEvents.map((evento: Evento) => (
+              <Card key={evento.id} className="shadow-lg transform hover:-translate-y-2 transition-transform duration-300">
                 <CardHeader className='p-0'>
                   <div className="aspect-video bg-muted rounded-t-lg mb-4 overflow-hidden relative">
                     <Image
-                        src={`https://picsum.photos/seed/news${item}/600/400`}
-                        alt={`Noticia ${item}`}
+                        src={evento.imageUrl || `https://picsum.photos/seed/event${evento.id}/600/400`}
+                        alt={evento.title}
                         fill
                         className="object-cover"
                         data-ai-hint="student event"
@@ -192,18 +196,25 @@ export default function Home() {
                   </div>
                 </CardHeader>
                 <CardContent className='p-6'>
-                  <CardTitle className='text-xl'>Evento de Innovación {item}</CardTitle>
-                  <CardDescription className='mt-2'>
-                    Una breve descripción sobre la noticia o el evento que se
-                    está llevando a cabo en la institución.
+                  <CardTitle className='text-xl'>{evento.title}</CardTitle>
+                  <CardDescription className='mt-2 line-clamp-3'>
+                    {evento.description}
                   </CardDescription>
                   <Button variant="link" className="px-0 mt-2">
-                    Leer más
+                    <Link href={`/noticias/${evento.id}`}>Leer más</Link>
                   </Button>
                 </CardContent>
               </Card>
             ))}
+             {latestEvents.length === 0 && (
+                <p className="text-center col-span-3 text-muted-foreground">No hay eventos recientes.</p>
+            )}
           </div>
+           <div className="text-center mt-12">
+                <Button asChild>
+                    <Link href="/noticias">Ver todas las noticias</Link>
+                </Button>
+            </div>
         </div>
       </section>
     </div>

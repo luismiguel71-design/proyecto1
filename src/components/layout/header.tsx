@@ -2,23 +2,36 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
-import { Menu, X, GraduationCap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Logo } from './logo';
-
+import { getCurrentUser, signOutUser } from '@/lib/firebase/auth';
+import type { User } from 'firebase/auth';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
   { href: '/carreras', label: 'Carreras' },
   { href: '/docentes', label: 'Docentes' },
   { href: '/admisiones', label: 'Alumnos y Admisiones' },
+  { href: '/noticias', label: 'Noticias' },
 ];
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const unsubscribe = getCurrentUser(setUser);
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await signOutUser();
+    setUser(null);
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -27,7 +40,6 @@ export default function Header() {
           <Logo />
         </div>
         
-        {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center">
           <Button
             variant="ghost"
@@ -40,7 +52,6 @@ export default function Header() {
           <Logo />
         </div>
 
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
           {navLinks.map((link) => (
             <Link
@@ -57,13 +68,24 @@ export default function Header() {
         </nav>
         
         <div className="flex flex-1 items-center justify-end space-x-4">
+          {user ? (
+            <>
+              <Button asChild variant="ghost">
+                <Link href="/admin/eventos">Admin</Link>
+              </Button>
+              <Button onClick={handleLogout}>Cerrar Sesión</Button>
+            </>
+          ) : (
+            <Button asChild>
+              <Link href="/login">Login</Link>
+            </Button>
+          )}
           <Button asChild>
             <Link href="/contacto">Contacto</Link>
           </Button>
         </div>
       </div>
       
-      {/* Mobile Navigation */}
       {isMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
