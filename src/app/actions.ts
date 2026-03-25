@@ -3,7 +3,7 @@
 
 import { educativeChatbot } from '@/ai/flows/educative-chatbot-flow';
 import { z } from 'zod';
-import { addEvent } from '@/lib/firebase/firestore';
+import { addEvent, deleteEvent, updateEvent } from '@/lib/firebase/firestore';
 import { revalidatePath } from 'next/cache';
 
 const EducativeChatbotInputSchema = z.object({
@@ -49,5 +49,56 @@ export async function addEventAction(values: z.infer<typeof eventFormSchema>) {
         return { success: "Evento creado exitosamente." };
     } catch (error) {
         return { error: "No se pudo crear el evento." };
+    }
+}
+
+const updateEventFormSchema = eventFormSchema.extend({
+    id: z.string().min(1, "El ID del evento es requerido."),
+});
+
+export async function updateEventAction(values: z.infer<typeof updateEventFormSchema>) {
+    const validatedFields = updateEventFormSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Datos inválidos.",
+        };
+    }
+
+    const { id, ...eventData } = validatedFields.data;
+
+    try {
+        await updateEvent(id, eventData);
+        revalidatePath('/admin/eventos');
+        revalidatePath(`/noticias/${id}`);
+        revalidatePath('/noticias');
+        revalidatePath('/');
+        return { success: "Evento actualizado exitosamente." };
+    } catch (error) {
+        return { error: "No se pudo actualizar el evento." };
+    }
+}
+
+const deleteEventSchema = z.object({
+    id: z.string().min(1, "El ID del evento es requerido."),
+});
+
+export async function deleteEventAction(id: string) {
+    const validatedFields = deleteEventSchema.safeParse({ id });
+
+    if (!validatedFields.success) {
+        return {
+            error: "ID de evento inválido.",
+        };
+    }
+
+    try {
+        await deleteEvent(validatedFields.data.id);
+        revalidatePath('/admin/eventos');
+        revalidatePath('/noticias');
+        revalidatePath('/');
+        return { success: "Evento eliminado exitosamente." };
+    } catch (error) {
+        return { error: "No se pudo eliminar el evento." };
     }
 }

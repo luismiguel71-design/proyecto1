@@ -1,4 +1,4 @@
-import { collection, getDocs, limit, orderBy, query, doc, getDoc, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query, doc, getDoc, addDoc, Timestamp, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './client';
 import type { Evento } from '../types';
 
@@ -82,5 +82,31 @@ export async function addEvent(data: { title: string; description: string; image
     } catch (error) {
         console.error("Error adding document: ", error);
         throw new Error("No se pudo crear el evento.");
+    }
+}
+
+export async function updateEvent(id: string, data: { title: string; description: string; imageUrl: string; }) {
+    if (!db) {
+        throw new Error("Firestore is not configured.");
+    }
+    try {
+        const eventDoc = doc(db, 'events', id);
+        await updateDoc(eventDoc, data);
+    } catch (error) {
+        console.error("Error updating document: ", error);
+        throw new Error("No se pudo actualizar el evento.");
+    }
+}
+
+export async function deleteEvent(id: string) {
+    if (!db) {
+        throw new Error("Firestore is not configured.");
+    }
+    try {
+        const eventDoc = doc(db, 'events', id);
+        await deleteDoc(eventDoc);
+    } catch (error) {
+        console.error("Error deleting document: ", error);
+        throw new Error("No se pudo eliminar el evento.");
     }
 }

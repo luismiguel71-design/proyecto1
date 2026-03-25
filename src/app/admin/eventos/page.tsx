@@ -20,6 +20,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Form,
   FormControl,
   FormField,
@@ -32,7 +42,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { addEventAction } from '@/app/actions';
+import { addEventAction, deleteEventAction, updateEventAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 
 const eventFormSchema = z.object({
@@ -50,7 +60,10 @@ export default function AdminEventosPage() {
   const [events, setEvents] = useState<Evento[]>([]);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [currentEvent, setCurrentEvent] = useState<Evento | null>(null);
+  const [eventToDeleteId, setEventToDeleteId] = useState<string | null>(null);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -60,6 +73,22 @@ export default function AdminEventosPage() {
       imageUrl: '',
     },
   });
+  
+  useEffect(() => {
+    if (currentEvent) {
+      form.reset({
+        title: currentEvent.title,
+        description: currentEvent.description,
+        imageUrl: currentEvent.imageUrl,
+      });
+    } else {
+      form.reset({
+        title: '',
+        description: '',
+        imageUrl: '',
+      });
+    }
+  }, [currentEvent, form]);
 
   useEffect(() => {
     const unsubscribe = getCurrentUser((user) => {
@@ -82,24 +111,67 @@ export default function AdminEventosPage() {
 
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
-    const result = await addEventAction(data);
+    
+    const result = currentEvent
+      ? await updateEventAction({ id: currentEvent.id, ...data })
+      : await addEventAction(data);
     
     if (result.error) {
       toast({
         variant: "destructive",
-        title: "Error al crear evento",
+        title: `Error al ${currentEvent ? 'actualizar' : 'crear'} evento`,
         description: result.error,
       });
     } else {
       toast({
-        title: "Evento Creado",
-        description: "El nuevo evento se ha guardado correctamente.",
+        title: `Evento ${currentEvent ? 'Actualizado' : 'Creado'}`,
+        description: `El evento se ha ${currentEvent ? 'actualizado' : 'guardado'} correctamente.`,
       });
       form.reset();
       await fetchEvents();
-      setIsDialogOpen(false);
+      setIsFormDialogOpen(false);
+      setCurrentEvent(null);
     }
     setIsSubmitting(false);
+  }
+  
+  const handleOpenCreateDialog = () => {
+    setCurrentEvent(null);
+    setIsFormDialogOpen(true);
+  };
+
+  const handleOpenEditDialog = (event: Evento) => {
+    setCurrentEvent(event);
+    setIsFormDialogOpen(true);
+  };
+  
+  const handleOpenDeleteDialog = (id: string) => {
+    setEventToDeleteId(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!eventToDeleteId) return;
+
+    setIsSubmitting(true);
+    const result = await deleteEventAction(eventToDeleteId);
+    
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Error al eliminar evento",
+        description: result.error,
+      });
+    } else {
+      toast({
+        title: "Evento Eliminado",
+        description: "El evento se ha eliminado correctamente.",
+      });
+      await fetchEvents();
+    }
+    setIsSubmitting(false);
+    setIsDeleteDialogOpen(false);
+    setEventToDeleteId(null);
   }
 
   if (loading) {
@@ -120,69 +192,7 @@ export default function AdminEventosPage() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Gestionar Noticias y Eventos</CardTitle>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>Crear Nuevo Evento</Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Crear Nuevo Evento</DialogTitle>
-                </DialogHeader>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Título</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Título del evento" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Descripción</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Describe el evento"
-                              className="min-h-[100px]"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="imageUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>URL de la Imagen</FormLabel>
-                          <FormControl>
-                            <Input placeholder="https://picsum.photos/seed/..." {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter>
-                      <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Guardar Evento
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={handleOpenCreateDialog}>Crear Nuevo Evento</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -216,14 +226,14 @@ export default function AdminEventosPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => alert('Función no implementada.')}
+                    onClick={() => handleOpenEditDialog(event)}
                   >
                     Editar
                   </Button>
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => alert('Función no implementada.')}
+                    onClick={() => handleOpenDeleteDialog(event.id)}
                   >
                     Eliminar
                   </Button>
@@ -238,6 +248,87 @@ export default function AdminEventosPage() {
           )}
         </CardContent>
       </Card>
+      
+      {/* Form Dialog for Create/Edit */}
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{currentEvent ? 'Editar Evento' : 'Crear Nuevo Evento'}</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Título</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Título del evento" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descripción</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe el evento"
+                        className="min-h-[100px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="imageUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL de la Imagen</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://picsum.photos/seed/..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {currentEvent ? 'Guardar Cambios' : 'Guardar Evento'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de que quieres eliminar este evento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El evento será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
