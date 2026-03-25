@@ -11,12 +11,55 @@ import Image from 'next/image';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getCurrentUser } from '@/lib/firebase/auth';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { addEventAction } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+
+const eventFormSchema = z.object({
+  title: z.string().min(5, 'El título debe tener al menos 5 caracteres.'),
+  description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres.'),
+  imageUrl: z.string().url('Por favor, introduce una URL de imagen válida. Te recomendamos usar https://picsum.photos/'),
+});
+
+type EventFormValues = z.infer<typeof eventFormSchema>;
 
 export default function AdminEventosPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<Evento[]>([]);
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const form = useForm<EventFormValues>({
+    resolver: zodResolver(eventFormSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      imageUrl: '',
+    },
+  });
 
   useEffect(() => {
     const unsubscribe = getCurrentUser((user) => {
@@ -37,6 +80,28 @@ export default function AdminEventosPage() {
     setEvents(eventsFromDb);
   };
 
+  async function onSubmit(data: EventFormValues) {
+    setIsSubmitting(true);
+    const result = await addEventAction(data);
+    
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Error al crear evento",
+        description: result.error,
+      });
+    } else {
+      toast({
+        title: "Evento Creado",
+        description: "El nuevo evento se ha guardado correctamente.",
+      });
+      form.reset();
+      await fetchEvents();
+      setIsDialogOpen(false);
+    }
+    setIsSubmitting(false);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -55,9 +120,69 @@ export default function AdminEventosPage() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Gestionar Noticias y Eventos</CardTitle>
-            <Button onClick={() => alert('Función no implementada.')}>
-              Crear Nuevo Evento
-            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>Crear Nuevo Evento</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Crear Nuevo Evento</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Título</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Título del evento" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descripción</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Describe el evento"
+                              className="min-h-[100px]"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="imageUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URL de la Imagen</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://picsum.photos/seed/..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Guardar Evento
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>

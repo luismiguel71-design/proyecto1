@@ -1,4 +1,4 @@
-import { collection, getDocs, limit, orderBy, query, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query, doc, getDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './client';
 import type { Evento } from '../types';
 
@@ -65,5 +65,22 @@ export async function getEvent(id: string): Promise<Evento | null> {
     } catch (error) {
         console.error("Error getting document:", error);
         return null;
+    }
+}
+
+
+export async function addEvent(data: { title: string; description: string; imageUrl: string; }) {
+    if (!db) {
+        throw new Error("Firestore is not configured.");
+    }
+    try {
+        const eventsCollection = collection(db, 'events');
+        await addDoc(eventsCollection, {
+            ...data,
+            date: Timestamp.now(),
+        });
+    } catch (error) {
+        console.error("Error adding document: ", error);
+        throw new Error("No se pudo crear el evento.");
     }
 }

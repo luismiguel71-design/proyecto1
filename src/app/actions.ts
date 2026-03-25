@@ -3,6 +3,8 @@
 
 import { educativeChatbot } from '@/ai/flows/educative-chatbot-flow';
 import { z } from 'zod';
+import { addEvent } from '@/lib/firebase/firestore';
+import { revalidatePath } from 'next/cache';
 
 const EducativeChatbotInputSchema = z.object({
   query: z.string().min(1, 'La consulta no puede estar vacía.'),
@@ -22,4 +24,30 @@ export async function getChatbotResponse(query: string) {
     console.error('Error getting chatbot response:', error);
     return { error: 'Lo siento, no puedo responder en este momento. Por favor, intenta de nuevo más tarde.' };
   }
+}
+
+const eventFormSchema = z.object({
+  title: z.string().min(5, 'El título debe tener al menos 5 caracteres.'),
+  description: z.string().min(10, 'La descripción debe tener al menos 10 caracteres.'),
+  imageUrl: z.string().url('Por favor, introduce una URL de imagen válida.'),
+});
+
+export async function addEventAction(values: z.infer<typeof eventFormSchema>) {
+    const validatedFields = eventFormSchema.safeParse(values);
+
+    if (!validatedFields.success) {
+        return {
+            error: "Datos inválidos.",
+        };
+    }
+
+    try {
+        await addEvent(validatedFields.data);
+        revalidatePath('/admin/eventos');
+        revalidatePath('/noticias');
+        revalidatePath('/');
+        return { success: "Evento creado exitosamente." };
+    } catch (error) {
+        return { error: "No se pudo crear el evento." };
+    }
 }
