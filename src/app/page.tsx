@@ -109,6 +109,30 @@ export default async function Home() {
         </div>
       </section>
       
+      <section className="py-16 md:py-24 bg-primary/5">
+        <div className="container px-4 md:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-primary">
+              Nuestro Espíritu
+            </h2>
+            <p className="mt-2 text-lg text-muted-foreground max-w-2xl mx-auto">
+              Nuestra mascota, el águila, representa la visión, la fuerza y la libertad que inspiramos en nuestros estudiantes.
+            </p>
+          </div>
+          <div className="flex justify-center">
+             <div className="relative w-48 h-48 md:w-64 md:h-64">
+                <Image
+                    src="/logo.png"
+                    alt="Mascota del CBTIS 294"
+                    fill
+                    className="object-contain"
+                    data-ai-hint="school mascot eagle"
+                />
+             </div>
+          </div>
+        </div>
+      </section>
+      
       <section className="py-16 md:py-24 bg-card">
         <div className="container px-4 md:px-6 grid md:grid-cols-2 gap-12 items-center">
           <div>
