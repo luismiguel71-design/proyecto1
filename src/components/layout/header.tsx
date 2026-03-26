@@ -35,7 +35,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-20 items-center">
+      <div className="container flex h-24 items-center">
         <div className="mr-4 hidden md:flex">
           <Logo />
         </div>
@@ -71,7 +71,10 @@ export default function Header() {
           {user ? (
             <>
               <Button asChild variant="ghost">
-                <Link href="/admin/eventos">Admin</Link>
+                <Link href="/admin/eventos">Admin Eventos</Link>
+              </Button>
+              <Button asChild variant="ghost">
+                <Link href="/admin/horarios">Generar Horarios</Link>
               </Button>
               <Button onClick={handleLogout}>Cerrar Sesión</Button>
             </>

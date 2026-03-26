@@ -5,6 +5,7 @@ import { educativeChatbot } from '@/ai/flows/educative-chatbot-flow';
 import { z } from 'zod';
 import { addEvent, deleteEvent, updateEvent } from '@/lib/firebase/firestore';
 import { revalidatePath } from 'next/cache';
+import { generateSchedule, type ScheduleGeneratorInput } from '@/ai/flows/schedule-generator-flow';
 
 const EducativeChatbotInputSchema = z.object({
   query: z.string().min(1, 'La consulta no puede estar vacía.'),
@@ -101,4 +102,33 @@ export async function deleteEventAction(id: string) {
     } catch (error) {
         return { error: "No se pudo eliminar el evento." };
     }
+}
+
+const TeacherActionSchema = z.object({
+  name: z.string().min(1, 'El nombre del docente es requerido.'),
+  availability: z.string().min(1, 'La disponibilidad del docente es requerida.'),
+  subjects: z.array(z.string()).min(1, 'El docente debe tener al menos una materia.'),
+  groups: z.array(z.string()).min(1, 'El docente debe atender al menos un grupo.'),
+});
+
+const ScheduleGeneratorInputSchema = z.object({
+  teachers: z.array(TeacherActionSchema).min(1, 'Se requiere al menos un docente para generar el horario.'),
+});
+
+
+export async function generateScheduleAction(input: ScheduleGeneratorInput) {
+  try {
+    const validatedInput = ScheduleGeneratorInputSchema.safeParse(input);
+
+    if (!validatedInput.success) {
+      console.error(validatedInput.error);
+      return { error: 'Los datos de entrada no son válidos.' };
+    }
+
+    const result = await generateSchedule(validatedInput.data);
+    return { schedule: result.schedule };
+  } catch (error) {
+    console.error('Error generating schedule:', error);
+    return { error: 'Lo siento, no se pudo generar el horario. Revisa los datos e intenta de nuevo.' };
+  }
 }
