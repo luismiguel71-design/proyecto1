@@ -24,6 +24,7 @@ export const signOutUser = () => {
 export const getCurrentUser = (callback: (user: User | null) => void) => {
   if (!auth) {
     callback(null);
+    console.warn("Firebase Auth is not configured. User state will not be tracked.");
     return () => {}; // return empty unsubscribe function
   }
   return onAuthStateChanged(auth, callback);

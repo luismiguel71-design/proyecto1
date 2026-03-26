@@ -18,7 +18,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useRouter } from "next/navigation";
 import { signInUser } from "@/lib/firebase/auth";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
 
 const formSchema = z.object({
   email: z.string().email("Por favor, introduce un correo electrónico válido."),
@@ -50,7 +51,9 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error(error);
       let description = "El correo electrónico o la contraseña son incorrectos.";
-      if (error.message?.includes("Firebase")) {
+      if (error.code === 'auth/invalid-credential') {
+        description = "El correo o la contraseña son incorrectos."
+      } else if (error.message?.includes("Firebase")) {
           description = "Error de Firebase: Es posible que la configuración no sea correcta. Contacta al administrador."
       }
       toast({
@@ -71,40 +74,50 @@ export default function LoginPage() {
             <CardDescription>Inicia sesión para gestionar el contenido.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Correo Electrónico</FormLabel>
-                    <FormControl>
-                      <Input placeholder="admin@cbtis294.edu.mx" {...field} type="email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contraseña</FormLabel>
-                    <FormControl>
-                      <Input placeholder="******" {...field} type="password"/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Iniciar Sesión
-              </Button>
-            </form>
-          </Form>
+          {!isFirebaseConfigured ? (
+            <div className="bg-destructive/10 text-destructive border border-destructive/20 p-4 rounded-md text-sm flex items-center gap-3">
+              <AlertTriangle className="h-6 w-6"/>
+              <div>
+                <p className="font-semibold">Configuración de Firebase Requerida</p>
+                <p>La autenticación está deshabilitada porque no se encontraron las credenciales de Firebase. Por favor, configura tus variables de entorno.</p>
+              </div>
+            </div>
+          ) : (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Correo Electrónico</FormLabel>
+                      <FormControl>
+                        <Input placeholder="admin@cbtis294.edu.mx" {...field} type="email" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contraseña</FormLabel>
+                      <FormControl>
+                        <Input placeholder="******" {...field} type="password"/>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Iniciar Sesión
+                </Button>
+              </form>
+            </Form>
+          )}
         </CardContent>
       </Card>
     </div>

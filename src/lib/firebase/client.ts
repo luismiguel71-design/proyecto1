@@ -9,11 +9,13 @@ let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 let auth: Auth | null = null;
 
-if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
+
+if (isFirebaseConfigured) {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     db = getFirestore(app);
     storage = getStorage(app);
     auth = getAuth(app);
 }
 
-export { app, db, storage, auth };
+export { app, db, storage, auth, isFirebaseConfigured };
