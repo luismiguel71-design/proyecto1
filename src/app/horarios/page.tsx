@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2, Download } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Download, Pencil } from 'lucide-react';
 import { generateScheduleAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { ScheduleGeneratorOutput } from '@/ai/flows/schedule-generator-flow';
@@ -35,6 +35,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 const scheduleFormSchema = z.object({
   subjects: z.array(z.object({
@@ -56,6 +63,9 @@ const LOCAL_STORAGE_KEY = 'cbtis_schedule_data';
 const timeSlots = ["07:00-08:00", "08:00-09:00", "09:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00", "13:00-14:00", "14:00-15:00"];
 const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
+type Teacher = { index: number; name: string; availability: string; };
+type Subject = { index: number; name: string; hours: number; teacher: string; group: string };
+
 export default function HorariosPage() {
   const [generatedSchedule, setGeneratedSchedule] = useState<ScheduleGeneratorOutput['schedule'] | null>(null);
   const [activeScheduleGroup, setActiveScheduleGroup] = useState<string | null>(null);
@@ -72,6 +82,19 @@ export default function HorariosPage() {
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectHours, setNewSubjectHours] = useState('');
   const [newSubjectTeacher, setNewSubjectTeacher] = useState('');
+  
+  // State for edit dialogs
+  const [isTeacherEditDialogOpen, setIsTeacherEditDialogOpen] = useState(false);
+  const [isSubjectEditDialogOpen, setIsSubjectEditDialogOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  
+  // State for edit dialog inputs
+  const [teacherEditName, setTeacherEditName] = useState('');
+  const [teacherEditAvailability, setTeacherEditAvailability] = useState('');
+  const [subjectEditName, setSubjectEditName] = useState('');
+  const [subjectEditHours, setSubjectEditHours] = useState('');
+  const [subjectEditTeacher, setSubjectEditTeacher] = useState('');
 
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
@@ -113,10 +136,11 @@ export default function HorariosPage() {
       }
     });
     return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.watch]);
   
-  const { fields: subjectFields, append: appendSubject, remove: removeSubject } = useFieldArray({ control: form.control, name: "subjects" });
-  const { fields: teacherFields, append: appendTeacher, remove: removeTeacher } = useFieldArray({ control: form.control, name: "teachers" });
+  const { fields: subjectFields, append: appendSubject, remove: removeSubject, update: updateSubject } = useFieldArray({ control: form.control, name: "subjects" });
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacher, update: updateTeacher } = useFieldArray({ control: form.control, name: "teachers" });
 
   const handleGenerateForGroup = async (group: string) => {
     setGeneratingGroup(group);
@@ -178,7 +202,7 @@ export default function HorariosPage() {
     if (scheduleRef.current === null) {
       return;
     }
-    toPng(scheduleRef.current, { cacheBust: true })
+    toPng(scheduleRef.current, { cacheBust: true, backgroundColor: 'white' })
       .then((dataUrl) => {
         const link = document.createElement('a');
         link.download = `horario-${activeScheduleGroup?.replace(/\s+/g, '-')}.png`;
@@ -195,6 +219,49 @@ export default function HorariosPage() {
       });
   }, [activeScheduleGroup, toast]);
 
+  const handleOpenTeacherEditDialog = (index: number) => {
+    const teacher = teacherFields[index];
+    setEditingTeacher({ index, ...teacher });
+    setTeacherEditName(teacher.name);
+    setTeacherEditAvailability(teacher.availability);
+    setIsTeacherEditDialogOpen(true);
+  };
+  
+  const handleUpdateTeacher = () => {
+    if (!editingTeacher || !teacherEditName || !teacherEditAvailability) {
+        toast({ variant: 'destructive', title: 'Datos incompletos', description: 'El nombre y la disponibilidad no pueden estar vacíos.' });
+        return;
+    };
+    updateTeacher(editingTeacher.index, { name: teacherEditName, availability: teacherEditAvailability });
+    setIsTeacherEditDialogOpen(false);
+    setEditingTeacher(null);
+    toast({ title: 'Docente Actualizado', description: 'Los datos del docente se han guardado.' });
+  };
+  
+  const handleOpenSubjectEditDialog = (index: number) => {
+    const subject = subjectFields[index];
+    setEditingSubject({ index, ...subject });
+    setSubjectEditName(subject.name);
+    setSubjectEditHours(String(subject.hours));
+    setSubjectEditTeacher(subject.teacher);
+    setIsSubjectEditDialogOpen(true);
+  };
+
+  const handleUpdateSubject = () => {
+    if (!editingSubject || !subjectEditName || !subjectEditHours || !subjectEditTeacher) {
+        toast({ variant: 'destructive', title: 'Datos incompletos', description: 'Todos los campos de la materia son requeridos.' });
+        return;
+    };
+    updateSubject(editingSubject.index, { 
+        ...editingSubject, 
+        name: subjectEditName, 
+        hours: parseInt(subjectEditHours), 
+        teacher: subjectEditTeacher 
+    });
+    setIsSubjectEditDialogOpen(false);
+    setEditingSubject(null);
+    toast({ title: 'Materia Actualizada', description: 'Los datos de la materia se han guardado.' });
+  };
 
   const allFormSubjects = form.watch('subjects');
   const groups = Array.from(new Set(allFormSubjects.map(s => s.group))).sort();
@@ -221,9 +288,12 @@ export default function HorariosPage() {
                 <Button type="button" onClick={handleAddTeacher} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4"/> Añadir Docente</Button>
                 <div className="space-y-2 pt-4 max-h-60 overflow-y-auto">
                   {teacherFields.map((field, index) => (
-                    <div key={field.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <div key={field.id} className="flex items-center justify-between p-2 border rounded-md gap-2">
                       <div><p className="font-semibold">{field.name}</p><p className="text-sm text-muted-foreground">{field.availability}</p></div>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeTeacher(index)}><Trash2 className="h-4 w-4"/></Button>
+                       <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="icon" onClick={() => handleOpenTeacherEditDialog(index)}><Pencil className="h-4 w-4"/></Button>
+                        <Button type="button" variant="destructive" size="icon" onClick={() => removeTeacher(index)}><Trash2 className="h-4 w-4"/></Button>
+                      </div>
                     </div>
                   ))}
                   {teacherFields.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Agrega al menos un docente.</p>}
@@ -267,9 +337,12 @@ export default function HorariosPage() {
                                 <AccordionTrigger>{group} ({groupSubjects.length} materias)</AccordionTrigger>
                                 <AccordionContent className="space-y-3">
                                     {groupSubjects.map((subject, index) => (
-                                        <div key={subject.id} className="flex items-center justify-between p-2 border rounded-md">
+                                        <div key={subject.id} className="flex items-center justify-between p-2 border rounded-md gap-2">
                                             <div><p className="font-semibold">{subject.name} ({subject.hours}h)</p><p className="text-sm text-muted-foreground">{subject.teacher}</p></div>
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeSubject(groupSubjectIndices[index])}><Trash2 className="h-4 w-4"/></Button>
+                                            <div className="flex gap-2">
+                                                <Button type="button" variant="outline" size="icon" onClick={() => handleOpenSubjectEditDialog(groupSubjectIndices[index])}><Pencil className="h-4 w-4"/></Button>
+                                                <Button type="button" variant="destructive" size="icon" onClick={() => removeSubject(groupSubjectIndices[index])}><Trash2 className="h-4 w-4"/></Button>
+                                            </div>
                                         </div>
                                     ))}
                                     {groupSubjects.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No hay materias para este grupo.</p>}
@@ -341,6 +414,70 @@ export default function HorariosPage() {
           </div>
         </div>
       </Form>
+      
+      {/* Teacher Edit Dialog */}
+      <Dialog open={isTeacherEditDialogOpen} onOpenChange={setIsTeacherEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Docente</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="teacher-name" className="text-right">Nombre</Label>
+              <Input id="teacher-name" value={teacherEditName} onChange={(e) => setTeacherEditName(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="teacher-availability" className="text-right">Disponibilidad</Label>
+              <Input id="teacher-availability" value={teacherEditAvailability} onChange={(e) => setTeacherEditAvailability(e.target.value)} className="col-span-3" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsTeacherEditDialogOpen(false)} variant="outline">Cancelar</Button>
+            <Button onClick={handleUpdateTeacher}>Guardar Cambios</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Subject Edit Dialog */}
+      <Dialog open={isSubjectEditDialogOpen} onOpenChange={setIsSubjectEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Materia</DialogTitle>
+          </DialogHeader>
+           <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Grupo</Label>
+              <p className="col-span-3 text-sm text-muted-foreground">{editingSubject?.group}</p>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="subject-name" className="text-right">Materia</Label>
+              <Input id="subject-name" value={subjectEditName} onChange={(e) => setSubjectEditName(e.target.value)} className="col-span-3" />
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="subject-hours" className="text-right">Horas/Semana</Label>
+              <Input id="subject-hours" type="number" value={subjectEditHours} onChange={(e) => setSubjectEditHours(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="subject-teacher" className="text-right">Docente</Label>
+              <Select value={subjectEditTeacher} onValueChange={setSubjectEditTeacher}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Seleccionar Docente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teacherFields.map((t) => (
+                    <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+             <Button onClick={() => setIsSubjectEditDialogOpen(false)} variant="outline">Cancelar</Button>
+            <Button onClick={handleUpdateSubject}>Guardar Cambios</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
