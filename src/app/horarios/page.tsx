@@ -1,10 +1,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { toPng } from 'html-to-image';
 import {
   Card,
   CardContent,
@@ -29,24 +30,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Download } from 'lucide-react';
 import { generateScheduleAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { ScheduleGeneratorOutput } from '@/ai/flows/schedule-generator-flow';
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from '@/components/ui/table';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
 import { careers } from '../lib/school-data';
 import { Label } from '@/components/ui/label';
 import {
@@ -73,12 +60,15 @@ type ScheduleFormValues = z.infer<typeof scheduleFormSchema>;
 
 const semesters = ["1", "2", "3", "4", "5", "6"];
 const LOCAL_STORAGE_KEY = 'cbtis_schedule_data';
+const timeSlots = ["07:00-08:00", "08:00-09:00", "09:00-10:00", "10:00-11:00", "11:00-12:00", "12:00-13:00", "13:00-14:00", "14:00-15:00"];
+const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
 export default function HorariosPage() {
   const [generatedSchedule, setGeneratedSchedule] = useState<ScheduleGeneratorOutput['schedule'] | null>(null);
   const [activeScheduleGroup, setActiveScheduleGroup] = useState<string | null>(null);
   const [generatingGroup, setGeneratingGroup] = useState<string | null>(null);
   const { toast } = useToast();
+  const scheduleRef = useRef<HTMLDivElement>(null);
   
   const [selectedCareer, setSelectedCareer] = useState(careers[0].slug);
   const [selectedSemester, setSelectedSemester] = useState(semesters[0]);
@@ -184,6 +174,28 @@ export default function HorariosPage() {
       toast({ variant: 'destructive', title: 'Faltan datos de la materia', description: 'Por favor, completa todos los campos de la materia.' });
     }
   };
+  
+  const handleExport = useCallback(() => {
+    if (scheduleRef.current === null) {
+      return;
+    }
+    toPng(scheduleRef.current, { cacheBust: true })
+      .then((dataUrl) => {
+        const link = document.createElement('a');
+        link.download = `horario-${activeScheduleGroup?.replace(/\s+/g, '-')}.png`;
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch((err) => {
+        console.log(err);
+        toast({
+          variant: 'destructive',
+          title: 'Error al exportar',
+          description: 'No se pudo generar la imagen del horario.'
+        });
+      });
+  }, [activeScheduleGroup, toast]);
+
 
   const allFormSubjects = form.watch('subjects');
   const groups = Array.from(new Set(allFormSubjects.map(s => s.group))).sort();
@@ -278,27 +290,52 @@ export default function HorariosPage() {
 
             <Card className="min-h-[400px] sticky top-24">
               <CardHeader>
-                <CardTitle>
-                    Horario Generado
-                    {activeScheduleGroup && <span className="block text-base font-normal text-muted-foreground">para {activeScheduleGroup}</span>}
-                </CardTitle>
+                <div className="flex justify-between items-center">
+                    <CardTitle>
+                        Horario Generado
+                        {activeScheduleGroup && <span className="block text-base font-normal text-muted-foreground">para {activeScheduleGroup}</span>}
+                    </CardTitle>
+                    {generatedSchedule && (
+                        <Button onClick={handleExport} variant="outline" size="sm">
+                            <Download className="mr-2 h-4 w-4" />
+                            Exportar como PNG
+                        </Button>
+                    )}
+                </div>
               </CardHeader>
               <CardContent>
                 {(generatingGroup) && <div className="flex flex-col items-center justify-center h-full gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary"/><p className="text-muted-foreground">Generando horario para {generatingGroup}...</p></div>}
                 {!(generatingGroup) && !generatedSchedule && <div className="flex items-center justify-center h-full text-center text-muted-foreground"><p>El horario de un grupo aparecerá aquí una vez que se genere.</p></div>}
                 {generatedSchedule && (
-                  <Tabs defaultValue="Lunes" className="w-full">
-                    <TabsList className="grid w-full grid-cols-5">{Object.keys(generatedSchedule).map((day) => (<TabsTrigger key={day} value={day}>{day}</TabsTrigger>))}</TabsList>
-                    {Object.entries(generatedSchedule).map(([day, slots]) => (
-                      <TabsContent key={day} value={day}>
-                        <Table><TableHeader><TableRow><TableHead>Hora</TableHead><TableHead>Grupo</TableHead><TableHead>Materia</TableHead><TableHead>Docente</TableHead></TableRow></TableHeader>
-                          <TableBody>
-                            {slots.length > 0 ? (slots.map((slot, index) => (<TableRow key={index}><TableCell>{slot.time}</TableCell><TableCell>{slot.group}</TableCell><TableCell>{slot.subject}</TableCell><TableCell>{slot.teacher}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={4} className="text-center">No hay clases programadas.</TableCell></TableRow>)}
-                          </TableBody>
-                        </Table>
-                      </TabsContent>
-                    ))}
-                  </Tabs>
+                  <div ref={scheduleRef} className="bg-white p-4 rounded-lg text-black">
+                     <h2 className="text-xl font-bold text-center mb-2">Horario de Clases</h2>
+                     <h3 className="text-lg font-semibold text-center mb-4">{activeScheduleGroup}</h3>
+                    <div className="grid grid-cols-6 border border-gray-300">
+                        <div className="font-bold text-center p-2 border-b border-r border-gray-300 bg-gray-100">Hora</div>
+                        {days.map(day => (
+                            <div key={day} className="font-bold text-center p-2 border-b border-r border-gray-300 bg-gray-100 last:border-r-0">{day}</div>
+                        ))}
+
+                        {timeSlots.map(time => (
+                            <>
+                                <div key={time} className="font-semibold text-center p-2 border-b border-r border-gray-300 bg-gray-50 flex items-center justify-center">{time}</div>
+                                {days.map(day => {
+                                    const slotData = generatedSchedule[day as keyof typeof generatedSchedule]?.find(s => s.time === time);
+                                    return (
+                                        <div key={`${day}-${time}`} className="p-2 border-b border-r border-gray-300 last:border-r-0 min-h-[70px] text-xs">
+                                           {slotData ? (
+                                                <div>
+                                                    <p className="font-bold">{slotData.subject}</p>
+                                                    <p className="text-gray-600">{slotData.teacher}</p>
+                                                </div>
+                                           ) : null}
+                                        </div>
+                                    )
+                                })}
+                            </>
+                        ))}
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
