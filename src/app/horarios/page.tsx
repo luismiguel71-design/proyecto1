@@ -14,14 +14,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { Form } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -94,14 +87,20 @@ export default function HorariosPage() {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedData) {
         const parsedData = JSON.parse(storedData);
-        // You might want to validate parsedData with Zod here in a real app
-        form.reset(parsedData);
+        const validation = scheduleFormSchema.safeParse(parsedData);
+        if (validation.success) {
+          form.reset(validation.data);
+        } else {
+          console.error("Invalid data in localStorage, clearing it.", validation.error);
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+        }
       }
     } catch (error) {
       console.error("Failed to load schedule data from localStorage", error);
       localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted data
     }
-  }, [form]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Save data to localStorage on any change
   useEffect(() => {
@@ -114,7 +113,7 @@ export default function HorariosPage() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [form]);
+  }, [form.watch]);
   
   const { fields: subjectFields, append: appendSubject, remove: removeSubject } = useFieldArray({ control: form.control, name: "subjects" });
   const { fields: teacherFields, append: appendTeacher, remove: removeTeacher } = useFieldArray({ control: form.control, name: "teachers" });
@@ -345,5 +344,3 @@ export default function HorariosPage() {
     </div>
   );
 }
-
-    
