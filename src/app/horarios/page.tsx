@@ -132,11 +132,13 @@ export default function HorariosPage() {
         const validation = scheduleFormSchema.safeParse(parsedData);
         if (validation.success) {
             const loadedData = validation.data;
+            // If stored data has no teachers, fallback to default list
             if (!loadedData.teachers || loadedData.teachers.length === 0) {
                 loadedData.teachers = defaultTeachers;
             }
             dataToLoad = loadedData;
         } else {
+          // If stored data is invalid, remove it and use defaults
           localStorage.removeItem(LOCAL_STORAGE_KEY);
         }
       }
@@ -421,23 +423,26 @@ export default function HorariosPage() {
                     {groups.length > 0 ? (
                         <Accordion type="multiple" className="w-full" value={openAccordionGroup} onValueChange={setOpenAccordionGroup}>
                         {groups.map(group => {
-                            const groupSubjects = subjectFields.filter(s => s.group === group);
-                            const groupSubjectIndices = subjectFields.map((s, i) => s.group === group ? i : -1).filter(i => i !== -1);
+                            const subjectCountForGroup = allFormSubjects.filter(s => s.group === group).length;
                             
                             return (
                             <AccordionItem value={group} key={group}>
-                                <AccordionTrigger>{group} ({groupSubjects.length} materias)</AccordionTrigger>
+                                <AccordionTrigger>{group} ({subjectCountForGroup} materias)</AccordionTrigger>
                                 <AccordionContent className="space-y-3">
-                                    {groupSubjects.map((subject, index) => (
-                                        <div key={subject.id} className="flex items-center justify-between p-2 border rounded-md gap-2">
-                                            <div><p className="font-semibold">{subject.name} ({subject.hours}h)</p><p className="text-sm text-muted-foreground">{subject.teacher}</p></div>
-                                            <div className="flex gap-2">
-                                                <Button type="button" variant="outline" size="icon" onClick={() => handleOpenSubjectEditDialog(groupSubjectIndices[index])}><Pencil className="h-4 w-4"/></Button>
-                                                <Button type="button" variant="destructive" size="icon" onClick={() => removeSubject(groupSubjectIndices[index])}><Trash2 className="h-4 w-4"/></Button>
+                                    {subjectFields.map((subject, index) => {
+                                        if (subject.group !== group) return null;
+                                        
+                                        return (
+                                            <div key={subject.id} className="flex items-center justify-between p-2 border rounded-md gap-2">
+                                                <div><p className="font-semibold">{subject.name} ({subject.hours}h)</p><p className="text-sm text-muted-foreground">{subject.teacher}</p></div>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" variant="outline" size="icon" onClick={() => handleOpenSubjectEditDialog(index)}><Pencil className="h-4 w-4"/></Button>
+                                                    <Button type="button" variant="destructive" size="icon" onClick={() => removeSubject(index)}><Trash2 className="h-4 w-4"/></Button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                    {groupSubjects.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No hay materias para este grupo.</p>}
+                                        )
+                                    })}
+                                    {subjectCountForGroup === 0 && <p className="text-sm text-center text-muted-foreground py-4">No hay materias para este grupo.</p>}
                                     <Button type="button" className="w-full mt-4" onClick={() => handleGenerateForGroup(group)} disabled={generatingGroup === group}>
                                         {generatingGroup === group ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Generando...</> : `Generar Horario para este Grupo`}
                                     </Button>
