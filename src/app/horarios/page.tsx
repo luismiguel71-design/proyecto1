@@ -42,7 +42,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const scheduleFormSchema = z.object({
   subjects: z.array(z.object({
@@ -76,6 +81,7 @@ export default function HorariosPage() {
   
   const [selectedCareer, setSelectedCareer] = useState(careers[0].slug);
   const [selectedSemester, setSelectedSemester] = useState(semesters[0]);
+  const [openAccordionGroup, setOpenAccordionGroup] = useState<string[]>([]);
 
   // States for uncontrolled inputs
   const [newTeacherName, setNewTeacherName] = useState('');
@@ -344,7 +350,7 @@ export default function HorariosPage() {
              <Card>
               <CardHeader>
                 <CardTitle>Progreso de Configuración</CardTitle>
-                <CardDescription>Vista rápida de los grupos que ya tienen materias asignadas.</CardDescription>
+                <CardDescription>Vista rápida de los grupos. Haz clic en un semestre para ver y gestionar sus materias abajo.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
@@ -354,11 +360,51 @@ export default function HorariosPage() {
                       <div className="flex flex-wrap gap-2">
                         {semesters.map(semester => {
                           const groupName = `${career.title} ${semester}° Semestre`;
-                          const isConfigured = groups.includes(groupName);
+                          const groupSubjects = allFormSubjects.filter(s => s.group === groupName);
+                          const subjectCount = groupSubjects.length;
+                          const totalHours = groupSubjects.reduce((acc, s) => acc + s.hours, 0);
+                          const isConfigured = subjectCount > 0;
+
+                          const handleGroupClick = () => {
+                            if (isConfigured) {
+                                setOpenAccordionGroup(prev => {
+                                const isOpen = prev.includes(groupName);
+                                if (isOpen) {
+                                    return prev.filter(g => g !== groupName);
+                                } else {
+                                    return [...prev, groupName];
+                                }
+                                });
+                            } else {
+                                toast({
+                                variant: "default",
+                                title: "Grupo no configurado",
+                                description: "Añade materias a este grupo para poder ver sus detalles.",
+                                });
+                            }
+                          };
+
                           return (
-                            <Badge key={`${career.id}-${semester}`} variant={isConfigured ? 'default' : 'outline'} className="w-24 justify-center">
-                              {semester}° Semestre
-                            </Badge>
+                            <TooltipProvider key={`${career.id}-${semester}`}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant={isConfigured ? 'default' : 'outline'}
+                                    size="sm"
+                                    className="w-28 justify-center"
+                                    onClick={handleGroupClick}
+                                  >
+                                    {semester}° Semestre
+                                  </Button>
+                                </TooltipTrigger>
+                                {isConfigured && (
+                                  <TooltipContent>
+                                    <p className="text-sm font-medium">{subjectCount} materias</p>
+                                    <p className="text-sm text-muted-foreground">{totalHours} horas en total</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
                           )
                         })}
                       </div>
@@ -375,7 +421,7 @@ export default function HorariosPage() {
                 </CardHeader>
                 <CardContent>
                     {groups.length > 0 ? (
-                        <Accordion type="multiple" className="w-full">
+                        <Accordion type="multiple" className="w-full" value={openAccordionGroup} onValueChange={setOpenAccordionGroup}>
                         {groups.map(group => {
                             const groupSubjects = subjectFields.filter(s => s.group === group);
                             const groupSubjectIndices = subjectFields.map((s, i) => s.group === group ? i : -1).filter(i => i !== -1);
