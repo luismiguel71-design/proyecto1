@@ -42,6 +42,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 
 const scheduleFormSchema = z.object({
   subjects: z.array(z.object({
@@ -335,9 +336,37 @@ export default function HorariosPage() {
             </Card>
           </div>
           <div className="space-y-8">
+             <Card>
+              <CardHeader>
+                <CardTitle>Progreso de Configuración</CardTitle>
+                <CardDescription>Vista rápida de los grupos que ya tienen materias asignadas.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
+                  {careers.map(career => (
+                    <div key={career.id}>
+                      <h4 className="font-semibold text-sm mb-2">{career.title}</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {semesters.map(semester => {
+                          const groupName = `${career.title} ${semester}° Semestre`;
+                          const isConfigured = groups.includes(groupName);
+                          return (
+                            <Badge key={`${career.id}-${semester}`} variant={isConfigured ? 'default' : 'outline'} className="w-24 justify-center">
+                              {semester}° Semestre
+                            </Badge>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
-                    <CardTitle>3. Grupos y Generación de Horario</CardTitle>
+                    <CardTitle>Grupos Configurados y Generación</CardTitle>
+                    <CardDescription>Gestiona las materias de cada grupo y genera su horario individualmente.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {groups.length > 0 ? (
