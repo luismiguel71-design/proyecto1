@@ -111,49 +111,48 @@ export default function HorariosPage() {
     },
   });
 
+  const { watch } = form;
+
   // Load data from localStorage on component mount, or load defaults.
   useEffect(() => {
-    try {
-      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-      
-      const defaultTeachers = defaultTeachersList.map(teacher => ({
+    const defaultTeachers = defaultTeachersList.map(teacher => ({
         name: teacher.name,
         availability: 'No especificada',
-      }));
+    }));
 
+    let dataToLoad: ScheduleFormValues = {
+        subjects: [],
+        teachers: defaultTeachers,
+    };
+    
+    try {
+      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedData) {
         const parsedData = JSON.parse(storedData);
         const validation = scheduleFormSchema.safeParse(parsedData);
         if (validation.success) {
-            // If stored data has no teachers, inject the default ones.
-            if (!validation.data.teachers || validation.data.teachers.length === 0) {
-                validation.data.teachers = defaultTeachers;
+            const loadedData = validation.data;
+            if (!loadedData.teachers || loadedData.teachers.length === 0) {
+                loadedData.teachers = defaultTeachers;
             }
-            form.reset(validation.data);
-            return;
+            dataToLoad = loadedData;
         } else {
-          console.error("Invalid localStorage data. Loading defaults.", validation.error);
           localStorage.removeItem(LOCAL_STORAGE_KEY);
         }
       }
-
-      // No data in localStorage or data was invalid, so load defaults
-      form.reset({
-        subjects: [],
-        teachers: defaultTeachers,
-      });
-      
     } catch (error) {
-      console.error("Error loading data. Resetting to defaults.", error);
-      localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted data
+      console.error("Error parsing localStorage data. Using defaults.", error);
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
+    
+    form.reset(dataToLoad);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
   // Save data to localStorage on any change
   useEffect(() => {
-    const subscription = form.watch((value) => {
+    const subscription = watch((value) => {
       try {
         const dataToStore = JSON.stringify(value);
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
@@ -162,8 +161,7 @@ export default function HorariosPage() {
       }
     });
     return () => subscription.unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.watch]);
+  }, [watch]);
   
   const { fields: subjectFields, append: appendSubject, remove: removeSubject, update: updateSubject } = useFieldArray({ control: form.control, name: "subjects" });
   const { fields: teacherFields, append: appendTeacher, remove: removeTeacher, update: updateTeacher } = useFieldArray({ control: form.control, name: "teachers" });
