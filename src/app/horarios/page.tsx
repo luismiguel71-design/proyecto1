@@ -27,7 +27,7 @@ import { Loader2, PlusCircle, Trash2, Download, Pencil } from 'lucide-react';
 import { generateScheduleAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { ScheduleGeneratorOutput } from '@/ai/flows/schedule-generator-flow';
-import { careers } from '../lib/school-data';
+import { careers, teachers as defaultTeachersList } from '../lib/school-data';
 import { Label } from '@/components/ui/label';
 import {
   Accordion,
@@ -104,7 +104,7 @@ export default function HorariosPage() {
     },
   });
 
-  // Load data from localStorage on component mount
+  // Load data from localStorage on component mount, or load defaults.
   useEffect(() => {
     try {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -113,17 +113,31 @@ export default function HorariosPage() {
         const validation = scheduleFormSchema.safeParse(parsedData);
         if (validation.success) {
           form.reset(validation.data);
+          return; // Exit if data loaded successfully
         } else {
-          console.error("Invalid data in localStorage, clearing it.", validation.error);
+          console.error("Invalid localStorage data. Loading defaults.", validation.error);
           localStorage.removeItem(LOCAL_STORAGE_KEY);
         }
       }
+
+      // No data in localStorage or data was invalid, so load defaults
+      const initialTeachers = defaultTeachersList.map(teacher => ({
+        name: teacher.name,
+        availability: 'No especificada',
+      }));
+
+      form.reset({
+        subjects: [],
+        teachers: initialTeachers,
+      });
+      
     } catch (error) {
-      console.error("Failed to load schedule data from localStorage", error);
+      console.error("Error loading data. Resetting to defaults.", error);
       localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted data
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   // Save data to localStorage on any change
   useEffect(() => {
