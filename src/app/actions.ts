@@ -12,6 +12,9 @@ const EducativeChatbotInputSchema = z.object({
 });
 
 export async function getChatbotResponse(query: string) {
+  if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+    return { error: 'La API Key de Gemini no está configurada. Por favor, añádela como variable de entorno (GEMINI_API_KEY).' };
+  }
   try {
     const validatedInput = EducativeChatbotInputSchema.safeParse({ query });
 
@@ -123,6 +126,9 @@ const ScheduleGeneratorInputSchema = z.object({
 
 
 export async function generateScheduleAction(input: ScheduleGeneratorInput) {
+  if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+    return { error: 'La API Key de Gemini no está configurada. Por favor, añádela como variable de entorno (GEMINI_API_KEY).' };
+  }
   try {
     const validatedInput = ScheduleGeneratorInputSchema.safeParse(input);
 
