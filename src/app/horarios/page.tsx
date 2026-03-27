@@ -113,38 +113,42 @@ export default function HorariosPage() {
 
   const { control, watch, reset } = form;
 
-  // Load data from localStorage on component mount, or load defaults.
   useEffect(() => {
-    const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-    const defaultTeachers = defaultTeachersList.map(teacher => ({
-      name: teacher.name,
-      availability: 'No especificada',
-    }));
+    // This effect runs once on mount to load data.
+    let finalData: ScheduleFormValues | null = null;
 
-    let finalData: ScheduleFormValues = { subjects: [], teachers: defaultTeachers };
-
-    if (storedData) {
-      try {
+    try {
+      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedData) {
         const parsedData = JSON.parse(storedData);
         const validation = scheduleFormSchema.safeParse(parsedData);
         if (validation.success) {
           finalData = validation.data;
-          // Ensure teachers are populated if they are missing from stored data
-          if (!finalData.teachers || finalData.teachers.length === 0) {
-            finalData.teachers = defaultTeachers;
-          }
         } else {
-          // Stored data is invalid, use defaults and clear storage
+          // If validation fails, clear storage and proceed to load defaults.
           localStorage.removeItem(LOCAL_STORAGE_KEY);
         }
-      } catch (error) {
-        // Parsing error, use defaults and clear storage
-        console.error("Error parsing localStorage data. Using defaults.", error);
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
       }
+    } catch (error) {
+      console.error("Error parsing localStorage. Clearing it.", error);
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
     
+    // If no valid data was loaded from storage, create it from defaults.
+    if (!finalData) {
+      finalData = { subjects: [], teachers: [] };
+    }
+    
+    // Ensure teacher list is populated if it's empty.
+    if (finalData.teachers.length === 0) {
+        finalData.teachers = defaultTeachersList.map(teacher => ({
+            name: teacher.name,
+            availability: 'No especificada',
+        }));
+    }
+
     reset(finalData);
+
   }, [reset]);
 
 
@@ -285,8 +289,7 @@ export default function HorariosPage() {
     toast({ title: 'Materia Actualizada', description: 'Los datos de la materia se han guardado.' });
   };
 
-  const allFormSubjects = form.watch('subjects');
-  const groups = Array.from(new Set(allFormSubjects.map(s => s.group))).sort();
+  const groups = Array.from(new Set(subjectFields.map(s => s.group))).sort();
 
   return (
     <div className="container py-10 space-y-8">
@@ -356,7 +359,7 @@ export default function HorariosPage() {
                       <div className="flex flex-wrap gap-2">
                         {semesters.map(semester => {
                           const groupName = `${career.title} ${semester}° Semestre`;
-                          const groupSubjects = allFormSubjects.filter(s => s.group === groupName);
+                          const groupSubjects = subjectFields.filter(s => s.group === groupName);
                           const subjectCount = groupSubjects.length;
                           const totalHours = groupSubjects.reduce((acc, s) => acc + s.hours, 0);
                           const isConfigured = subjectCount > 0;
@@ -419,21 +422,23 @@ export default function HorariosPage() {
                     {groups.length > 0 ? (
                         <Accordion type="multiple" className="w-full" value={openAccordionGroup} onValueChange={setOpenAccordionGroup}>
                         {groups.map(group => {
-                            const subjectCountForGroup = allFormSubjects.filter(s => s.group === group).length;
+                            const groupSubjects = subjectFields.filter(s => s.group === group);
+                            const subjectCountForGroup = groupSubjects.length;
                             
                             return (
                             <AccordionItem value={group} key={group}>
                                 <AccordionTrigger>{group} ({subjectCountForGroup} materias)</AccordionTrigger>
                                 <AccordionContent className="space-y-3">
-                                    {subjectFields.map((subject, index) => {
-                                        if (subject.group !== group) return null;
-                                        
+                                    {groupSubjects.map((subject) => {
+                                        const originalIndex = subjectFields.findIndex(sf => sf.id === subject.id);
+                                        if (originalIndex === -1) return null;
+
                                         return (
                                             <div key={subject.id} className="flex items-center justify-between p-2 border rounded-md gap-2">
                                                 <div><p className="font-semibold">{subject.name} ({subject.hours}h)</p><p className="text-sm text-muted-foreground">{subject.teacher}</p></div>
                                                 <div className="flex gap-2">
-                                                    <Button type="button" variant="outline" size="icon" onClick={() => handleOpenSubjectEditDialog(index)}><Pencil className="h-4 w-4"/></Button>
-                                                    <Button type="button" variant="destructive" size="icon" onClick={() => removeSubject(index)}><Trash2 className="h-4 w-4"/></Button>
+                                                    <Button type="button" variant="outline" size="icon" onClick={() => handleOpenSubjectEditDialog(originalIndex)}><Pencil className="h-4 w-4"/></Button>
+                                                    <Button type="button" variant="destructive" size="icon" onClick={() => removeSubject(originalIndex)}><Trash2 className="h-4 w-4"/></Button>
                                                 </div>
                                             </div>
                                         )
