@@ -115,39 +115,41 @@ export default function HorariosPage() {
 
   // Load data from localStorage on component mount, or load defaults.
   useEffect(() => {
+    let finalData: ScheduleFormValues;
+    const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+
     const defaultTeachers = defaultTeachersList.map(teacher => ({
-        name: teacher.name,
-        availability: 'No especificada',
+      name: teacher.name,
+      availability: 'No especificada',
     }));
 
-    let dataToLoad: ScheduleFormValues = {
-        subjects: [],
-        teachers: defaultTeachers,
-    };
-    
-    try {
-      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (storedData) {
+    if (storedData) {
+      try {
         const parsedData = JSON.parse(storedData);
         const validation = scheduleFormSchema.safeParse(parsedData);
         if (validation.success) {
-            const loadedData = validation.data;
-            // If stored data has no teachers, fallback to default list
-            if (!loadedData.teachers || loadedData.teachers.length === 0) {
-                loadedData.teachers = defaultTeachers;
-            }
-            dataToLoad = loadedData;
+          finalData = validation.data;
+          // Ensure teachers are populated if they are missing from stored data
+          if (!finalData.teachers || finalData.teachers.length === 0) {
+            finalData.teachers = defaultTeachers;
+          }
         } else {
-          // If stored data is invalid, remove it and use defaults
+          // Stored data is invalid, use defaults and clear storage
           localStorage.removeItem(LOCAL_STORAGE_KEY);
+          finalData = { subjects: [], teachers: defaultTeachers };
         }
+      } catch (error) {
+        // Parsing error, use defaults and clear storage
+        console.error("Error parsing localStorage data. Using defaults.", error);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        finalData = { subjects: [], teachers: defaultTeachers };
       }
-    } catch (error) {
-      console.error("Error parsing localStorage data. Using defaults.", error);
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } else {
+      // No stored data, use defaults
+      finalData = { subjects: [], teachers: defaultTeachers };
     }
     
-    form.reset(dataToLoad);
+    form.reset(finalData);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
