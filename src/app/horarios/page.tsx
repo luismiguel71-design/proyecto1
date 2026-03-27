@@ -112,9 +112,10 @@ export default function HorariosPage() {
     },
   });
 
-  const { control, watch, reset } = form;
+  const { control, watch, setValue, getValues } = form;
 
   useEffect(() => {
+    setIsLoading(true);
     let finalData: ScheduleFormValues;
     try {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -130,6 +131,7 @@ export default function HorariosPage() {
             }));
           }
         } else {
+          console.warn("Invalid data in localStorage, starting fresh.", validation.error);
           finalData = {
             subjects: [],
             teachers: defaultTeachersList.map(teacher => ({
@@ -160,25 +162,28 @@ export default function HorariosPage() {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
     
-    reset(finalData);
+    setValue('teachers', finalData.teachers);
+    setValue('subjects', finalData.subjects);
+
     setIsLoading(false);
-  }, [reset]);
+  }, [setValue]);
 
 
   // Save data to localStorage on any change
   useEffect(() => {
-    if (isLoading) return; // Don't save during the initial data load
+    if (isLoading) return;
 
-    const subscription = watch((value) => {
+    const subscription = watch(() => {
       try {
-        const dataToStore = JSON.stringify(value);
+        const currentValues = getValues();
+        const dataToStore = JSON.stringify(currentValues);
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
       } catch (error) {
         console.error("Failed to save schedule data to localStorage", error);
       }
     });
     return () => subscription.unsubscribe();
-  }, [watch, isLoading]);
+  }, [watch, isLoading, getValues]);
   
   const { fields: subjectFields, append: appendSubject, remove: removeSubject, update: updateSubject } = useFieldArray({ control, name: "subjects" });
   const { fields: teacherFields, append: appendTeacher, remove: removeTeacher, update: updateTeacher } = useFieldArray({ control, name: "teachers" });
@@ -188,8 +193,8 @@ export default function HorariosPage() {
     setGeneratedSchedule(null);
     setActiveScheduleGroup(group);
 
-    const allTeachers = form.getValues('teachers');
-    const groupSubjects = form.getValues('subjects').filter(s => s.group === group);
+    const allTeachers = getValues('teachers');
+    const groupSubjects = getValues('subjects').filter(s => s.group === group);
     
     if (groupSubjects.length === 0) {
       toast({ variant: 'destructive', title: 'No hay materias', description: `Agrega materias al grupo "${group}" para poder generar un horario.` });
@@ -215,7 +220,7 @@ export default function HorariosPage() {
 
   const handleAddTeacher = () => {
     if (newTeacherName && newTeacherAvailability) {
-      if (form.getValues('teachers').some(t => t.name.toLowerCase() === newTeacherName.toLowerCase())) {
+      if (getValues('teachers').some(t => t.name.toLowerCase() === newTeacherName.toLowerCase())) {
         toast({ variant: 'destructive', title: 'Docente duplicado', description: 'Este docente ya ha sido añadido.' });
         return;
       }
@@ -361,7 +366,7 @@ export default function HorariosPage() {
                   <Input type="number" placeholder="Horas/semana" value={newSubjectHours} onChange={e => setNewSubjectHours(e.target.value)} />
                   <Select value={newSubjectTeacher} onValueChange={setNewSubjectTeacher}>
                     <SelectTrigger><SelectValue placeholder="Seleccionar Docente"/></SelectTrigger>
-                    <SelectContent>{form.watch('teachers').map(t => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{watch('teachers').map(t => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <Button type="button" onClick={handleAddSubject} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4"/> Añadir Materia</Button>
@@ -384,7 +389,7 @@ export default function HorariosPage() {
                           const groupName = `${career.title} ${semester}° Semestre`;
                           const groupSubjects = subjectFields.filter(s => s.group === groupName);
                           const subjectCount = groupSubjects.length;
-                          const totalHours = groupSubjects.reduce((acc, s) => acc + s.hours, 0);
+                          const totalHours = groupSubjects.reduce((acc, s) => acc + (s.hours || 0), 0);
                           const isConfigured = subjectCount > 0;
 
                           const handleGroupClick = () => {
@@ -447,10 +452,11 @@ export default function HorariosPage() {
                         {groups.map(group => {
                             const groupSubjects = subjectFields.filter(s => s.group === group);
                             const subjectCountForGroup = groupSubjects.length;
+                            const totalHoursForGroup = groupSubjects.reduce((total, subject) => total + (subject.hours || 0), 0);
                             
                             return (
                             <AccordionItem value={group} key={group}>
-                                <AccordionTrigger>{group} ({subjectCountForGroup} materias)</AccordionTrigger>
+                                <AccordionTrigger>{group} ({subjectCountForGroup} materias, {totalHoursForGroup} horas)</AccordionTrigger>
                                 <AccordionContent className="space-y-3">
                                     {groupSubjects.map((subject) => {
                                         const originalIndex = subjectFields.findIndex(sf => sf.id === subject.id);
