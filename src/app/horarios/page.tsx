@@ -72,8 +72,8 @@ const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 type Teacher = { index: number; name: string; availability: string; };
 type Subject = { index: number; name: string; hours: number; teacher: string; group: string };
 
-export default function HorariosPage() {
-  const [isLoading, setIsLoading] = useState(true);
+
+function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
   const [generatedSchedule, setGeneratedSchedule] = useState<ScheduleGeneratorOutput['schedule'] | null>(null);
   const [activeScheduleGroup, setActiveScheduleGroup] = useState<string | null>(null);
   const [generatingGroup, setGeneratingGroup] = useState<string | null>(null);
@@ -106,82 +106,23 @@ export default function HorariosPage() {
 
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
-    defaultValues: {
-      subjects: [],
-      teachers: [],
-    },
+    defaultValues: initialData,
   });
 
-  const { control, watch, getValues, reset } = form;
-
-  useEffect(() => {
-    setIsLoading(true);
-    let finalData: ScheduleFormValues;
-    try {
-      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        const validation = scheduleFormSchema.safeParse(parsedData);
-        if (validation.success) {
-          finalData = validation.data;
-          if (!finalData.teachers || finalData.teachers.length === 0) {
-            finalData.teachers = defaultTeachersList.map(teacher => ({
-              name: teacher.name,
-              availability: 'No especificada',
-            }));
-          }
-        } else {
-          console.warn("Invalid data in localStorage, starting fresh.", validation.error);
-          finalData = {
-            subjects: [],
-            teachers: defaultTeachersList.map(teacher => ({
-              name: teacher.name,
-              availability: 'No especificada',
-            })),
-          };
-          localStorage.removeItem(LOCAL_STORAGE_KEY);
-        }
-      } else {
-        finalData = {
-          subjects: [],
-          teachers: defaultTeachersList.map(teacher => ({
-            name: teacher.name,
-            availability: 'No especificada',
-          })),
-        };
-      }
-    } catch (error) {
-      console.error("Error loading data from localStorage. Starting fresh.", error);
-      finalData = {
-        subjects: [],
-        teachers: defaultTeachersList.map(teacher => ({
-          name: teacher.name,
-          availability: 'No especificada',
-        })),
-      };
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-    }
-    
-    reset(finalData);
-    setIsLoading(false);
-  }, [reset]);
-
+  const { control, watch, getValues } = form;
 
   // Save data to localStorage on any change
   useEffect(() => {
-    if (isLoading) return;
-
     const subscription = watch(() => {
       try {
         const currentValues = getValues();
-        const dataToStore = JSON.stringify(currentValues);
-        localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentValues));
       } catch (error) {
         console.error("Failed to save schedule data to localStorage", error);
       }
     });
     return () => subscription.unsubscribe();
-  }, [watch, isLoading, getValues]);
+  }, [watch, getValues]);
   
   const { fields: subjectFields, append: appendSubject, remove: removeSubject, update: updateSubject } = useFieldArray({ control, name: "subjects" });
   const { fields: teacherFields, append: appendTeacher, remove: removeTeacher, update: updateTeacher } = useFieldArray({ control, name: "teachers" });
@@ -308,14 +249,6 @@ export default function HorariosPage() {
   };
 
   const groups = Array.from(new Set(subjectFields.map(s => s.group))).sort();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="container py-10 space-y-8">
@@ -590,7 +523,7 @@ export default function HorariosPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {teacherFields.map((t) => (
-                    <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>
+                    <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -602,7 +535,61 @@ export default function HorariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
+}
+
+
+export default function HorariosPage() {
+  const [initialData, setInitialData] = useState<ScheduleFormValues | null>(null);
+
+  useEffect(() => {
+    let finalData: ScheduleFormValues;
+    try {
+      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedData) {
+        const parsedData = JSON.parse(storedData);
+        const validation = scheduleFormSchema.safeParse(parsedData);
+        if (validation.success) {
+          finalData = validation.data;
+          if (!finalData.teachers || finalData.teachers.length === 0) {
+            finalData.teachers = defaultTeachersList.map(teacher => ({
+              name: teacher.name,
+              availability: 'No especificada',
+            }));
+          }
+        } else {
+          console.warn("Invalid data in localStorage, starting fresh.", validation.error);
+          finalData = {
+            subjects: [],
+            teachers: defaultTeachersList.map(teacher => ({ name: teacher.name, availability: 'No especificada' })),
+          };
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+        }
+      } else {
+        finalData = {
+          subjects: [],
+          teachers: defaultTeachersList.map(teacher => ({ name: teacher.name, availability: 'No especificada' })),
+        };
+      }
+    } catch (error) {
+      console.error("Error loading data from localStorage. Starting fresh.", error);
+      finalData = {
+        subjects: [],
+        teachers: defaultTeachersList.map(teacher => ({ name: teacher.name, availability: 'No especificada' })),
+      };
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+    setInitialData(finalData);
+  }, []);
+
+  if (!initialData) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  return <ScheduleForm initialData={initialData} />;
 }
