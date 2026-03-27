@@ -111,17 +111,17 @@ export default function HorariosPage() {
     },
   });
 
-  const { watch } = form;
+  const { control, watch, reset } = form;
 
   // Load data from localStorage on component mount, or load defaults.
   useEffect(() => {
-    let finalData: ScheduleFormValues;
     const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-
     const defaultTeachers = defaultTeachersList.map(teacher => ({
       name: teacher.name,
       availability: 'No especificada',
     }));
+
+    let finalData: ScheduleFormValues = { subjects: [], teachers: defaultTeachers };
 
     if (storedData) {
       try {
@@ -136,22 +136,16 @@ export default function HorariosPage() {
         } else {
           // Stored data is invalid, use defaults and clear storage
           localStorage.removeItem(LOCAL_STORAGE_KEY);
-          finalData = { subjects: [], teachers: defaultTeachers };
         }
       } catch (error) {
         // Parsing error, use defaults and clear storage
         console.error("Error parsing localStorage data. Using defaults.", error);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
-        finalData = { subjects: [], teachers: defaultTeachers };
       }
-    } else {
-      // No stored data, use defaults
-      finalData = { subjects: [], teachers: defaultTeachers };
     }
     
-    form.reset(finalData);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    reset(finalData);
+  }, [reset]);
 
 
   // Save data to localStorage on any change
@@ -167,8 +161,8 @@ export default function HorariosPage() {
     return () => subscription.unsubscribe();
   }, [watch]);
   
-  const { fields: subjectFields, append: appendSubject, remove: removeSubject, update: updateSubject } = useFieldArray({ control: form.control, name: "subjects" });
-  const { fields: teacherFields, append: appendTeacher, remove: removeTeacher, update: updateTeacher } = useFieldArray({ control: form.control, name: "teachers" });
+  const { fields: subjectFields, append: appendSubject, remove: removeSubject, update: updateSubject } = useFieldArray({ control, name: "subjects" });
+  const { fields: teacherFields, append: appendTeacher, remove: removeTeacher, update: updateTeacher } = useFieldArray({ control, name: "teachers" });
 
   const handleGenerateForGroup = async (group: string) => {
     setGeneratingGroup(group);
