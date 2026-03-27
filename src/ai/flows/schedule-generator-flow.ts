@@ -98,7 +98,7 @@ const scheduleGeneratorFlow = ai.defineFlow(
   async (input) => {
     const { output } = await prompt(input);
     if (!output) {
-      throw new Error('El modelo no pudo generar un horario.');
+      throw new Error('La IA no pudo generar un horario con las restricciones dadas. Por favor, verifica que no haya conflictos e inténtalo de nuevo.');
     }
     // Sort the schedule for each day by time
     for (const day in output.schedule) {

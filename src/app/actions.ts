@@ -136,6 +136,9 @@ export async function generateScheduleAction(input: ScheduleGeneratorInput) {
     return { schedule: result.schedule };
   } catch (error) {
     console.error('Error generating schedule:', error);
-    return { error: 'Lo siento, no se pudo generar el horario. Revisa los datos e intenta de nuevo.' };
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Lo siento, no se pudo generar el horario. Revisa los datos e intenta de nuevo.';
+    return { error: errorMessage };
   }
 }
