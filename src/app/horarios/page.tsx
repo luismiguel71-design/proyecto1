@@ -552,6 +552,7 @@ export default function HorariosPage() {
         const validation = scheduleFormSchema.safeParse(parsedData);
         if (validation.success) {
           finalData = validation.data;
+          // Ensure teachers list is not empty, fallback to defaults if needed.
           if (!finalData.teachers || finalData.teachers.length === 0) {
             finalData.teachers = defaultTeachersList.map(teacher => ({
               name: teacher.name,
@@ -591,5 +592,9 @@ export default function HorariosPage() {
     );
   }
   
-  return <ScheduleForm initialData={initialData} />;
+  // Use a key to force re-mounting the form component when initialData is ready.
+  // This is a robust way to ensure react-hook-form initializes correctly.
+  return <ScheduleForm key={JSON.stringify(initialData)} initialData={initialData} />;
 }
+
+    
