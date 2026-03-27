@@ -73,6 +73,7 @@ type Teacher = { index: number; name: string; availability: string; };
 type Subject = { index: number; name: string; hours: number; teacher: string; group: string };
 
 export default function HorariosPage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [generatedSchedule, setGeneratedSchedule] = useState<ScheduleGeneratorOutput['schedule'] | null>(null);
   const [activeScheduleGroup, setActiveScheduleGroup] = useState<string | null>(null);
   const [generatingGroup, setGeneratingGroup] = useState<string | null>(null);
@@ -114,9 +115,7 @@ export default function HorariosPage() {
   const { control, watch, reset } = form;
 
   useEffect(() => {
-    // This effect runs once on mount to load data.
-    let finalData: ScheduleFormValues | null = null;
-
+    let finalData: ScheduleFormValues;
     try {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedData) {
@@ -124,36 +123,52 @@ export default function HorariosPage() {
         const validation = scheduleFormSchema.safeParse(parsedData);
         if (validation.success) {
           finalData = validation.data;
+          if (!finalData.teachers || finalData.teachers.length === 0) {
+            finalData.teachers = defaultTeachersList.map(teacher => ({
+              name: teacher.name,
+              availability: 'No especificada',
+            }));
+          }
         } else {
-          // If validation fails, clear storage and proceed to load defaults.
+          finalData = {
+            subjects: [],
+            teachers: defaultTeachersList.map(teacher => ({
+              name: teacher.name,
+              availability: 'No especificada',
+            })),
+          };
           localStorage.removeItem(LOCAL_STORAGE_KEY);
         }
+      } else {
+        finalData = {
+          subjects: [],
+          teachers: defaultTeachersList.map(teacher => ({
+            name: teacher.name,
+            availability: 'No especificada',
+          })),
+        };
       }
     } catch (error) {
-      console.error("Error parsing localStorage. Clearing it.", error);
+      console.error("Error loading data from localStorage. Starting fresh.", error);
+      finalData = {
+        subjects: [],
+        teachers: defaultTeachersList.map(teacher => ({
+          name: teacher.name,
+          availability: 'No especificada',
+        })),
+      };
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
     
-    // If no valid data was loaded from storage, create it from defaults.
-    if (!finalData) {
-      finalData = { subjects: [], teachers: [] };
-    }
-    
-    // Ensure teacher list is populated if it's empty.
-    if (finalData.teachers.length === 0) {
-        finalData.teachers = defaultTeachersList.map(teacher => ({
-            name: teacher.name,
-            availability: 'No especificada',
-        }));
-    }
-
     reset(finalData);
-
+    setIsLoading(false);
   }, [reset]);
 
 
   // Save data to localStorage on any change
   useEffect(() => {
+    if (isLoading) return; // Don't save during the initial data load
+
     const subscription = watch((value) => {
       try {
         const dataToStore = JSON.stringify(value);
@@ -163,7 +178,7 @@ export default function HorariosPage() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [watch]);
+  }, [watch, isLoading]);
   
   const { fields: subjectFields, append: appendSubject, remove: removeSubject, update: updateSubject } = useFieldArray({ control, name: "subjects" });
   const { fields: teacherFields, append: appendTeacher, remove: removeTeacher, update: updateTeacher } = useFieldArray({ control, name: "teachers" });
@@ -290,6 +305,14 @@ export default function HorariosPage() {
   };
 
   const groups = Array.from(new Set(subjectFields.map(s => s.group))).sort();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container py-10 space-y-8">
