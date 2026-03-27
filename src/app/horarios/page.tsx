@@ -109,12 +109,22 @@ export default function HorariosPage() {
   useEffect(() => {
     try {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+      
+      const defaultTeachers = defaultTeachersList.map(teacher => ({
+        name: teacher.name,
+        availability: 'No especificada',
+      }));
+
       if (storedData) {
         const parsedData = JSON.parse(storedData);
         const validation = scheduleFormSchema.safeParse(parsedData);
         if (validation.success) {
-          form.reset(validation.data);
-          return; // Exit if data loaded successfully
+            // If stored data has no teachers, inject the default ones.
+            if (!validation.data.teachers || validation.data.teachers.length === 0) {
+                validation.data.teachers = defaultTeachers;
+            }
+            form.reset(validation.data);
+            return;
         } else {
           console.error("Invalid localStorage data. Loading defaults.", validation.error);
           localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -122,14 +132,9 @@ export default function HorariosPage() {
       }
 
       // No data in localStorage or data was invalid, so load defaults
-      const initialTeachers = defaultTeachersList.map(teacher => ({
-        name: teacher.name,
-        availability: 'No especificada',
-      }));
-
       form.reset({
         subjects: [],
-        teachers: initialTeachers,
+        teachers: defaultTeachers,
       });
       
     } catch (error) {
