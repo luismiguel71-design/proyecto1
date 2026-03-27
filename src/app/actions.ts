@@ -122,6 +122,8 @@ const TeacherActionSchema = z.object({
 const ScheduleGeneratorInputSchema = z.object({
   subjects: z.array(SubjectActionSchema).min(1, 'Se requiere al menos una materia para generar el horario.'),
   teachers: z.array(TeacherActionSchema).min(1, 'Se requiere al menos un docente para generar el horario.'),
+  prioritizeCoreSubjects: z.boolean().optional(),
+  allowLongBlocksForProgramming: z.boolean().optional(),
 });
 
 

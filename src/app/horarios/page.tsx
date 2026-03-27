@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -48,6 +48,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 
 const scheduleFormSchema = z.object({
   subjects: z.array(z.object({
@@ -73,8 +76,42 @@ type Teacher = { index: number; name: string; availability: string; };
 type Subject = { index: number; name: string; hours: number; teacher: string; group: string };
 
 
+const ScheduleTable = React.forwardRef<HTMLDivElement, { schedule: ScheduleGeneratorOutput['schedule'], title: string, subtitle?: string, detailKey: 'teacher' | 'group' }>(({ schedule, title, subtitle, detailKey }, ref) => {
+    return (
+        <div ref={ref} className="bg-white p-4 rounded-lg text-black">
+            <h2 className="text-xl font-bold text-center mb-2">{title}</h2>
+            {subtitle && <h3 className="text-lg font-semibold text-center mb-4">{subtitle}</h3>}
+            <div className="grid grid-cols-6 border border-gray-300">
+                <div className="font-bold text-center p-2 border-b border-r border-gray-300 bg-gray-100">Hora</div>
+                {days.map(day => (
+                    <div key={day} className="font-bold text-center p-2 border-b border-r border-gray-300 bg-gray-100 last:border-r-0">{day}</div>
+                ))}
+                {timeSlots.map(time => (
+                    <React.Fragment key={time}>
+                        <div className="font-semibold text-center p-2 border-b border-r border-gray-300 bg-gray-50 flex items-center justify-center">{time}</div>
+                        {days.map(day => {
+                            const dayKey = day as keyof typeof schedule;
+                            const slotData = schedule[dayKey]?.find(s => s.time === time);
+                            return (
+                                <div key={`${day}-${time}`} className="p-2 border-b border-r border-gray-300 last:border-r-0 min-h-[70px] text-xs">
+                                   {slotData ? (
+                                        <div>
+                                            <p className="font-bold">{slotData.subject}</p>
+                                            <p className="text-gray-600">{slotData[detailKey]}</p>
+                                        </div>
+                                   ) : null}
+                                </div>
+                            );
+                        })}
+                    </React.Fragment>
+                ))}
+            </div>
+        </div>
+    );
+});
+ScheduleTable.displayName = "ScheduleTable";
+
 function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
-  const [generatedSchedule, setGeneratedSchedule] = useState<ScheduleGeneratorOutput['schedule'] | null>(null);
   const [activeScheduleGroup, setActiveScheduleGroup] = useState<string | null>(null);
   const [generatingGroup, setGeneratingGroup] = useState<string | null>(null);
   const { toast } = useToast();
@@ -104,12 +141,24 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
   const [subjectEditHours, setSubjectEditHours] = useState('');
   const [subjectEditTeacher, setSubjectEditTeacher] = useState('');
 
+  // New states for advanced features
+  const [allGeneratedSchedules, setAllGeneratedSchedules] = useState<Record<string, ScheduleGeneratorOutput['schedule']>>({});
+  const [viewMode, setViewMode] = useState<'group' | 'teacher'>('group');
+  const [selectedTeacher, setSelectedTeacher] = useState<string>('');
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [prioritizeCore, setPrioritizeCore] = useState(false);
+  const [allowLongBlocks, setAllowLongBlocks] = useState(false);
+  
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
     defaultValues: initialData,
   });
 
-  const { control, watch, getValues } = form;
+  const { control, watch, getValues, reset } = form;
+
+  useEffect(() => {
+    reset(initialData);
+  }, [initialData, reset]);
 
   // Save data to localStorage on any change
   useEffect(() => {
@@ -129,9 +178,7 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
 
   const handleGenerateForGroup = async (group: string) => {
     setGeneratingGroup(group);
-    setGeneratedSchedule(null);
-    setActiveScheduleGroup(group);
-
+    
     const allTeachers = getValues('teachers');
     const groupSubjects = getValues('subjects').filter(s => s.group === group);
     
@@ -146,16 +193,58 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
       return;
     }
 
-    const result = await generateScheduleAction({ teachers: allTeachers, subjects: groupSubjects });
+    const result = await generateScheduleAction({ 
+        teachers: allTeachers, 
+        subjects: groupSubjects,
+        prioritizeCoreSubjects: prioritizeCore,
+        allowLongBlocksForProgramming: allowLongBlocks,
+    });
 
     if (result.error) {
       toast({ variant: 'destructive', title: 'Error al generar horario', description: result.error });
     } else if (result.schedule) {
-      setGeneratedSchedule(result.schedule);
+      setAllGeneratedSchedules(prev => ({...prev, [group]: result.schedule!}));
+      setActiveScheduleGroup(group);
       toast({ title: 'Horario Generado', description: `El horario para ${group} ha sido generado exitosamente.` });
     }
     setGeneratingGroup(null);
   }
+
+  const handleGenerateAll = async () => {
+    setIsGeneratingAll(true);
+    toast({ title: 'Iniciando generación masiva...', description: 'Esto puede tardar varios minutos.' });
+    
+    const allGroups = Array.from(new Set(subjectFields.map(s => s.group)));
+    const allTeachers = getValues('teachers');
+    let newSchedules: Record<string, ScheduleGeneratorOutput['schedule']> = {};
+    let errors: string[] = [];
+
+    for (const group of allGroups) {
+        const groupSubjects = getValues('subjects').filter(s => s.group === group);
+        if (groupSubjects.length > 0) {
+            const result = await generateScheduleAction({
+                teachers: allTeachers,
+                subjects: groupSubjects,
+                prioritizeCoreSubjects: prioritizeCore,
+                allowLongBlocksForProgramming: allowLongBlocks,
+            });
+            if (result.schedule) {
+                newSchedules[group] = result.schedule;
+            } else {
+                errors.push(group);
+            }
+        }
+    }
+
+    setAllGeneratedSchedules(prev => ({...prev, ...newSchedules}));
+    setIsGeneratingAll(false);
+
+    if (errors.length > 0) {
+        toast({ variant: 'destructive', title: 'Generación con errores', description: `No se pudo generar horario para: ${errors.join(', ')}` });
+    } else {
+        toast({ title: 'Generación completada', description: 'Todos los horarios han sido generados exitosamente.' });
+    }
+  };
 
   const handleAddTeacher = () => {
     if (newTeacherName && newTeacherAvailability) {
@@ -185,12 +274,14 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
   
   const handleExport = useCallback(() => {
     if (scheduleRef.current === null) {
+      toast({ variant: 'destructive', title: 'Nada que exportar', description: 'Primero genera y selecciona un horario.' });
       return;
     }
-    toPng(scheduleRef.current, { cacheBust: true, backgroundColor: 'white' })
+    toPng(scheduleRef.current, { cacheBust: true, backgroundColor: 'white', pixelRatio: 1.5 })
       .then((dataUrl) => {
         const link = document.createElement('a');
-        link.download = `horario-${activeScheduleGroup?.replace(/\s+/g, '-')}.png`;
+        const name = viewMode === 'group' ? activeScheduleGroup : selectedTeacher;
+        link.download = `horario-${name?.replace(/\s+/g, '-') || 'export'}.png`;
         link.href = dataUrl;
         link.click();
       })
@@ -202,7 +293,7 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
           description: 'No se pudo generar la imagen del horario.'
         });
       });
-  }, [activeScheduleGroup, toast]);
+  }, [activeScheduleGroup, selectedTeacher, viewMode, toast]);
 
   const handleOpenTeacherEditDialog = (index: number) => {
     const teacher = teacherFields[index];
@@ -250,12 +341,40 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
 
   const groups = Array.from(new Set(subjectFields.map(s => s.group))).sort();
 
+  const teacherSchedules = useMemo(() => {
+    const schedules: Record<string, ScheduleGeneratorOutput['schedule']> = {};
+    const allTeachers = teacherFields.map(t => t.name);
+
+    for (const teacherName of allTeachers) {
+        const teacherSchedule: ScheduleGeneratorOutput['schedule'] = { Lunes: [], Martes: [], Miércoles: [], Jueves: [], Viernes: [] };
+        
+        for (const groupSchedule of Object.values(allGeneratedSchedules)) {
+            for (const day of days) {
+                const dayKey = day as keyof typeof groupSchedule;
+                const slotsForTeacher = groupSchedule[dayKey]?.filter(slot => slot.teacher === teacherName);
+                if (slotsForTeacher) {
+                    teacherSchedule[dayKey].push(...slotsForTeacher);
+                }
+            }
+        }
+        for (const day of days) {
+            teacherSchedule[day as keyof typeof teacherSchedule]?.sort((a, b) => a.time.localeCompare(b.time));
+        }
+
+        schedules[teacherName] = teacherSchedule;
+    }
+    return schedules;
+  }, [allGeneratedSchedules, teacherFields]);
+
+  const activeGroupSchedule = activeScheduleGroup ? allGeneratedSchedules[activeScheduleGroup] : null;
+  const selectedTeacherSchedule = selectedTeacher ? teacherSchedules[selectedTeacher] : null;
+
   return (
     <div className="container py-10 space-y-8">
       <Card>
         <CardHeader>
           <CardTitle>Generador de Horarios con IA</CardTitle>
-          <CardDescription>Configura las materias, docentes y sus restricciones. La IA creará una propuesta de horario optimizada por grupo.</CardDescription>
+          <CardDescription>Configura las materias, docentes y sus restricciones. La IA creará una propuesta de horario optimizada.</CardDescription>
         </CardHeader>
       </Card>
       
@@ -286,8 +405,9 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>2. Añadir Materias a un Grupo</CardTitle></CardHeader>
+              <CardHeader><CardTitle>2. Configurar Materias y Reglas</CardTitle></CardHeader>
               <CardContent className="space-y-4">
+                <p className="font-medium text-sm">Añadir Materia</p>
                 <div className="flex gap-4 items-end">
                   <div className="flex-1"><Label>Carrera</Label><Select value={selectedCareer} onValueChange={setSelectedCareer}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{careers.map(c => <SelectItem key={c.slug} value={c.slug}>{c.title}</SelectItem>)}</SelectContent></Select></div>
                   <div className="flex-1"><Label>Semestre</Label><Select value={selectedSemester} onValueChange={setSelectedSemester}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{semesters.map(s => <SelectItem key={s} value={s}>{s}° Semestre</SelectItem>)}</SelectContent></Select></div>
@@ -301,14 +421,25 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
                   </Select>
                 </div>
                 <Button type="button" onClick={handleAddSubject} className="w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4"/> Añadir Materia</Button>
+                <Separator className="my-6" />
+                <p className="font-medium text-sm">Opciones Avanzadas de Planificación</p>
+                 <div className="flex items-center space-x-2">
+                    <Checkbox id="prioritize-core" checked={prioritizeCore} onCheckedChange={(checked) => setPrioritizeCore(Boolean(checked))} />
+                    <Label htmlFor="prioritize-core" className="cursor-pointer text-sm font-normal">Priorizar materias de pensamiento y ciencias en primeras horas.</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Checkbox id="allow-long-blocks" checked={allowLongBlocks} onCheckedChange={(checked) => setAllowLongBlocks(Boolean(checked))}/>
+                    <Label htmlFor="allow-long-blocks" className="cursor-pointer text-sm font-normal">Permitir bloques largos (hasta 5h) para materias de programación.</Label>
+                </div>
               </CardContent>
             </Card>
+
           </div>
           <div className="space-y-8">
              <Card>
               <CardHeader>
                 <CardTitle>Progreso de Configuración</CardTitle>
-                <CardDescription>Vista rápida de los grupos. Haz clic en un semestre para ver y gestionar sus materias abajo.</CardDescription>
+                <CardDescription>Vista rápida de los grupos. Haz clic en un semestre para ver sus materias abajo.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
@@ -327,11 +458,7 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
                             if (isConfigured) {
                                 setOpenAccordionGroup(prev => {
                                 const isOpen = prev.includes(groupName);
-                                if (isOpen) {
-                                    return prev.filter(g => g !== groupName);
-                                } else {
-                                    return [...prev, groupName];
-                                }
+                                return isOpen ? prev.filter(g => g !== groupName) : [...prev, groupName];
                                 });
                             } else {
                                 toast({
@@ -373,9 +500,15 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
             </Card>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>Grupos Configurados y Generación</CardTitle>
-                    <CardDescription>Gestiona las materias de cada grupo y genera su horario individualmente.</CardDescription>
+                <CardHeader className="flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Grupos Configurados y Generación</CardTitle>
+                        <CardDescription>Gestiona materias y genera horarios.</CardDescription>
+                    </div>
+                    <Button type="button" onClick={handleGenerateAll} disabled={isGeneratingAll}>
+                        {isGeneratingAll && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Generar Todos
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     {groups.length > 0 ? (
@@ -405,7 +538,7 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
                                     })}
                                     {subjectCountForGroup === 0 && <p className="text-sm text-center text-muted-foreground py-4">No hay materias para este grupo.</p>}
                                     <Button type="button" className="w-full mt-4" onClick={() => handleGenerateForGroup(group)} disabled={generatingGroup === group}>
-                                        {generatingGroup === group ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Generando...</> : `Generar Horario para este Grupo`}
+                                        {generatingGroup === group ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Generando...</> : `Generar Horario para ${group}`}
                                     </Button>
                                 </AccordionContent>
                             </AccordionItem>
@@ -421,52 +554,34 @@ function ScheduleForm({ initialData }: { initialData: ScheduleFormValues }) {
             <Card className="min-h-[400px] sticky top-24">
               <CardHeader>
                 <div className="flex justify-between items-center">
-                    <CardTitle>
-                        Horario Generado
-                        {activeScheduleGroup && <span className="block text-base font-normal text-muted-foreground">para {activeScheduleGroup}</span>}
-                    </CardTitle>
-                    {generatedSchedule && (
-                        <Button onClick={handleExport} variant="outline" size="sm">
-                            <Download className="mr-2 h-4 w-4" />
-                            Exportar como PNG
-                        </Button>
-                    )}
+                    <CardTitle>Horario Generado</CardTitle>
+                    <Button onClick={handleExport} variant="outline" size="sm" disabled={!activeGroupSchedule && !selectedTeacherSchedule}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar Vista
+                    </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                {(generatingGroup) && <div className="flex flex-col items-center justify-center h-full gap-4"><Loader2 className="h-12 w-12 animate-spin text-primary"/><p className="text-muted-foreground">Generando horario para {generatingGroup}...</p></div>}
-                {!(generatingGroup) && !generatedSchedule && <div className="flex items-center justify-center h-full text-center text-muted-foreground"><p>El horario de un grupo aparecerá aquí una vez que se genere.</p></div>}
-                {generatedSchedule && (
-                  <div ref={scheduleRef} className="bg-white p-4 rounded-lg text-black">
-                     <h2 className="text-xl font-bold text-center mb-2">Horario de Clases</h2>
-                     <h3 className="text-lg font-semibold text-center mb-4">{activeScheduleGroup}</h3>
-                    <div className="grid grid-cols-6 border border-gray-300">
-                        <div className="font-bold text-center p-2 border-b border-r border-gray-300 bg-gray-100">Hora</div>
-                        {days.map(day => (
-                            <div key={day} className="font-bold text-center p-2 border-b border-r border-gray-300 bg-gray-100 last:border-r-0">{day}</div>
-                        ))}
-
-                        {timeSlots.map(time => (
-                            <>
-                                <div key={time} className="font-semibold text-center p-2 border-b border-r border-gray-300 bg-gray-50 flex items-center justify-center">{time}</div>
-                                {days.map(day => {
-                                    const slotData = generatedSchedule[day as keyof typeof generatedSchedule]?.find(s => s.time === time);
-                                    return (
-                                        <div key={`${day}-${time}`} className="p-2 border-b border-r border-gray-300 last:border-r-0 min-h-[70px] text-xs">
-                                           {slotData ? (
-                                                <div>
-                                                    <p className="font-bold">{slotData.subject}</p>
-                                                    <p className="text-gray-600">{slotData.teacher}</p>
-                                                </div>
-                                           ) : null}
-                                        </div>
-                                    )
-                                })}
-                            </>
-                        ))}
-                    </div>
-                  </div>
-                )}
+                <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as 'group' | 'teacher')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="group">Vista por Grupo</TabsTrigger>
+                    <TabsTrigger value="teacher">Vista por Docente</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="group" className="mt-4">
+                    {generatingGroup && <div className="flex flex-col items-center justify-center h-full gap-4 pt-10"><Loader2 className="h-12 w-12 animate-spin text-primary"/><p className="text-muted-foreground">Generando horario para {generatingGroup}...</p></div>}
+                    {!generatingGroup && !activeGroupSchedule && <div className="flex items-center justify-center h-full pt-20 text-center text-muted-foreground"><p>El horario de un grupo aparecerá aquí una vez que se genere.</p></div>}
+                    {activeGroupSchedule && <ScheduleTable ref={scheduleRef} schedule={activeGroupSchedule} title="Horario de Clases" subtitle={activeScheduleGroup} detailKey="teacher"/>}
+                  </TabsContent>
+                  <TabsContent value="teacher" className="mt-4 space-y-4">
+                    <Select onValueChange={setSelectedTeacher} value={selectedTeacher}>
+                        <SelectTrigger><SelectValue placeholder="Selecciona un docente para ver su horario"/></SelectTrigger>
+                        <SelectContent>{teacherFields.map(t => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                    {!selectedTeacher && <div className="flex items-center justify-center h-full pt-20 text-center text-muted-foreground"><p>Selecciona un docente.</p></div>}
+                    {selectedTeacher && !selectedTeacherSchedule && <div className="flex items-center justify-center h-full pt-20 text-center text-muted-foreground"><p>No se encontró horario para este docente.</p></div>}
+                    {selectedTeacherSchedule && <ScheduleTable ref={scheduleRef} schedule={selectedTeacherSchedule} title="Horario de Docente" subtitle={selectedTeacher} detailKey="group"/>}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>
@@ -592,9 +707,5 @@ export default function HorariosPage() {
     );
   }
   
-  // Use a key to force re-mounting the form component when initialData is ready.
-  // This is a robust way to ensure react-hook-form initializes correctly.
   return <ScheduleForm key={JSON.stringify(initialData)} initialData={initialData} />;
 }
-
-    

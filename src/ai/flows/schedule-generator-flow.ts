@@ -25,6 +25,8 @@ const TeacherSchema = z.object({
 const ScheduleGeneratorInputSchema = z.object({
   subjects: z.array(SubjectSchema).describe('A list of all subjects to be scheduled.'),
   teachers: z.array(TeacherSchema).describe('A list of all teachers with their availability.'),
+  prioritizeCoreSubjects: z.boolean().optional().describe('If true, subjects with "pensamiento" or "ciencias" in their name should be scheduled in the morning.'),
+  allowLongBlocksForProgramming: z.boolean().optional().describe('If true, allows subjects with "algoritmos" or "programación" to have blocks of up to 5 consecutive hours.'),
 });
 export type ScheduleGeneratorInput = z.infer<typeof ScheduleGeneratorInputSchema>;
 
@@ -68,6 +70,14 @@ const prompt = ai.definePrompt({
 **Sugerencias Pedagógicas (Importante):**
 *   Si una materia tiene 3 horas o más a la semana, **DEBES** dividir las clases en diferentes días. No programes 3 o más horas seguidas de la misma materia para el mismo grupo en un solo día.
 *   Idealmente, divide las materias con muchas horas en bloques de 1 o 2 horas. Por ejemplo, una materia de 4 horas semanales podría ser 2 horas un día y 2 horas otro día.
+
+**Reglas Avanzadas (si se especifican):**
+{{#if prioritizeCoreSubjects}}
+*   **PRIORIDAD ALTA:** Las materias que contengan "pensamiento" o "ciencias" en su nombre DEBEN ser programadas en las primeras horas del día (de 7:00 AM a 11:00 AM) siempre que sea posible.
+{{/if}}
+{{#if allowLongBlocksForProgramming}}
+*   **EXCEPCIÓN:** Para las materias que contengan "algoritmos" o "programación" en su nombre, se PERMITE programar bloques de hasta 5 horas seguidas en un mismo día si es necesario para cumplir con el total de horas semanales. La regla general de no programar más de 2 horas seguidas no aplica para estas materias específicas.
+{{/if}}
 
 **Información para la Planificación:**
 
