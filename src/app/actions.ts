@@ -104,14 +104,20 @@ export async function deleteEventAction(id: string) {
     }
 }
 
+const SubjectActionSchema = z.object({
+    name: z.string().min(1, 'Materia es requerida.'),
+    hours: z.coerce.number().min(1, 'Horas debe ser al menos 1.'),
+    teacher: z.string().min(1, 'Docente es requerido.'),
+    group: z.string().min(1),
+});
+
 const TeacherActionSchema = z.object({
   name: z.string().min(1, 'El nombre del docente es requerido.'),
   availability: z.string().min(1, 'La disponibilidad del docente es requerida.'),
-  subjects: z.array(z.string()).min(1, 'El docente debe tener al menos una materia.'),
-  groups: z.array(z.string()).min(1, 'El docente debe atender al menos un grupo.'),
 });
 
 const ScheduleGeneratorInputSchema = z.object({
+  subjects: z.array(SubjectActionSchema).min(1, 'Se requiere al menos una materia para generar el horario.'),
   teachers: z.array(TeacherActionSchema).min(1, 'Se requiere al menos un docente para generar el horario.'),
 });
 
@@ -122,7 +128,8 @@ export async function generateScheduleAction(input: ScheduleGeneratorInput) {
 
     if (!validatedInput.success) {
       console.error(validatedInput.error);
-      return { error: 'Los datos de entrada no son válidos.' };
+      const firstError = validatedInput.error.errors[0]?.message || 'Los datos de entrada no son válidos.';
+      return { error: firstError };
     }
 
     const result = await generateSchedule(validatedInput.data);

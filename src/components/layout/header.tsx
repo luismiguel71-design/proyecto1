@@ -15,6 +15,7 @@ const navLinks = [
   { href: '/carreras', label: 'Carreras' },
   { href: '/docentes', label: 'Docentes' },
   { href: '/admisiones', label: 'Alumnos y Admisiones' },
+  { href: '/horarios', label: 'Horarios' },
   { href: '/noticias', label: 'Noticias' },
 ];
 
@@ -59,7 +60,7 @@ export default function Header() {
               href={link.href}
               className={cn(
                 'transition-colors hover:text-foreground/80',
-                pathname === link.href ? 'text-foreground' : 'text-foreground/60'
+                (pathname.startsWith(link.href) && link.href !== '/') || pathname === link.href ? 'text-foreground' : 'text-foreground/60'
               )}
             >
               {link.label}
@@ -72,9 +73,6 @@ export default function Header() {
             <>
               <Button asChild variant="ghost">
                 <Link href="/admin/eventos">Admin Eventos</Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link href="/admin/horarios">Generar Horarios</Link>
               </Button>
               <Button onClick={handleLogout}>Cerrar Sesión</Button>
             </>
@@ -99,7 +97,7 @@ export default function Header() {
                 onClick={() => setIsMenuOpen(false)}
                 className={cn(
                   'block rounded-md px-3 py-2 text-base font-medium',
-                  pathname === link.href
+                  (pathname.startsWith(link.href) && link.href !== '/') || pathname === link.href
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
