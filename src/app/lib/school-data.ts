@@ -1,3 +1,4 @@
+
 export type Career = {
   id: string;
   slug: string;
@@ -111,3 +112,5 @@ export const admissionInfo = [
     content: "El departamento de orientación educativa brinda apoyo psicopedagógico a los estudiantes, ayudándolos en su desarrollo académico, personal y vocacional a lo largo de su estancia en el bachillerato."
   }
 ];
+
+    
