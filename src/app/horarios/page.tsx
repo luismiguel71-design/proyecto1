@@ -112,7 +112,7 @@ export default function HorariosPage() {
     },
   });
 
-  const { control, watch, setValue, getValues } = form;
+  const { control, watch, getValues, reset } = form;
 
   useEffect(() => {
     setIsLoading(true);
@@ -162,11 +162,9 @@ export default function HorariosPage() {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
     
-    setValue('teachers', finalData.teachers);
-    setValue('subjects', finalData.subjects);
-
+    reset(finalData);
     setIsLoading(false);
-  }, [setValue]);
+  }, [reset]);
 
 
   // Save data to localStorage on any change
