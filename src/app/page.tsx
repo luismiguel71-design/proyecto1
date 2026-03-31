@@ -19,6 +19,7 @@ import { careers } from '@/app/lib/school-data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { getEvents } from '@/lib/firebase/firestore';
 import { Evento } from '@/lib/types';
+import mascot from '@/assets/images/mascot.png';
 
 const heroImage = PlaceHolderImages.find((img) => img.id === 'hero-students-laughing');
 
@@ -122,7 +123,7 @@ export default async function Home() {
           <div className="flex justify-center">
              <div className="relative w-64 h-64 md:w-80 md:h-80">
                 <Image
-                    src="/mascot.png"
+                    src={mascot}
                     alt="Mascota del CBTIS 294"
                     fill
                     className="object-contain"
