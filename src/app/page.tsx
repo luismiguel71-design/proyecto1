@@ -122,7 +122,7 @@ export default async function Home() {
           <div className="flex justify-center">
              <div className="relative w-64 h-64 md:w-80 md:h-80">
                 <Image
-                    src="/mascot.png"
+                    src="/cbtis-mascot.png"
                     alt="Mascota del CBTIS 294"
                     fill
                     className="object-contain"
